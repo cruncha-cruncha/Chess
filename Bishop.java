@@ -1,61 +1,48 @@
 package Chess;
 
-public class Bishop extends PieceAbstract {
+public class Bishop implements PieceInterface {
 	
-	public Bishop (Board board, Colour colour, int row, int col) {
-		super(board,colour,row,col);
-		possibleMoves = new int[13][2];
+	public Bishop () { }
+	
+	public char getChar() {
+		return 'B';
 	}
 	
-	public Bishop (Board board, Colour colour, int row, int col, PieceAbstract next) {
-		this(board,colour,row,col);
-		this.next = next;
-	}
-	
-	public String printChar() {
-		return "B";
-	}
-	
-	public boolean move(int r, int c) {
-		if (!inPlay)
+	public boolean move (Board b, byte current, byte newCol, byte newRow) {
+		int diffCol = ((current&56)>>3)-newCol;
+		int diffRow = (current&7)-newRow;
+		
+		if (Math.abs(diffCol) != Math.abs(diffRow))
 			return false;
-		if (r < 0 || r > 7)
-			return false;
-		if (c < 0 || c > 7)
-			return false;
-		if (colour == Colour.BLACK && r > row)
-			return false;
-		if (colour == Colour.WHITE && r < row)
+		if (b.board[newCol][newRow] != -128 && (-128&b.pieces[b.board[newCol][newRow]]) == (-128&current))
 			return false;
 		
-		int diffRow = r-row;
-		int diffCol = c-col;
+		byte colSign = (byte) Math.signum(diffCol);
+		byte rowSign = (byte) Math.signum(diffRow);
 		
-		// http://stackoverflow.com/questions/13988805/fastest-way-to-get-sign-in-java
-		int rowSign = (int) Math.signum(diffRow);
-		int colSign = (int) Math.signum(diffCol);
-		
-		if (us[r][c] == null && Math.abs(diffRow) == Math.abs(diffCol)) {
-			for (int x=1; x < Math.abs(diffRow); x++) {
-				if (us[row+x*rowSign][col+x*colSign] != null)
-					return false;
-				if (them[row+x*rowSign][col+x*colSign] != null)
-					return false;
-			}
-		} else {
-			return false;
+		for (byte i = 1; i < Math.abs(diffCol); i++) {
+			if (b.board[newCol+(colSign*i)][newRow+(rowSign*i)] != -128)
+				return false;
 		}
-
-		updateBoard(r,c);
-		if (board.inCheck(colour)) {
-			if (board.calcCheck(colour)) {
-				super.undoMove();
+		
+		byte[] tempMove = b.tempMove.pieces;
+		tempMove[0] = b.board[(current&56)>>3][current&7];
+		tempMove[1] = current;
+		
+		if (b.board[newCol][newRow] != -128)
+			tempMove[2] = b.board[newCol][newRow];
+		
+		b.tempBoard((byte)((current&56)>>3), (byte)(current&7), newCol, newRow);
+		
+		if (b.inCheck(current)) {
+			if (b.calcCheck(current)) {
+				b.undoTemp();
 				return false;
 			}
 		} else {
-			if (board.calcCheck(colour)) {
-				super.undoMove();
-				board.noCheck(colour);
+			if (b.calcCheck(current)) {
+				b.undoTemp();
+				b.noCheck(current);
 				return false;
 			}
 		}
@@ -63,35 +50,77 @@ public class Bishop extends PieceAbstract {
 		return true;
 	}
 	
-	public int[][] calcPossibleMoves() {
-		int count = 0;
-		for (int x=1; x<8; x++) {
-			if (move(row+x,col+x)) {
-				this.undoMove();
-				possibleMoves[count][0] = row+x;
-				possibleMoves[count][1] = col+x;
-				count++;
-			} else if (move(row+x,col-x)) {
-				this.undoMove();
-				possibleMoves[count][0] = row+x;
-				possibleMoves[count][1] = col-x;
-				count++;
-			} else if (move(row-x,col+x)) {
-				this.undoMove();
-				possibleMoves[count][0] = row-x;
-				possibleMoves[count][1] = col+x;
-				count++;
-			} else if (move(row-x,col-x)) {
-				this.undoMove();
-				possibleMoves[count][0] = row-x;
-				possibleMoves[count][1] = col-x;
-				count++;
+	public byte[] calcPossibleMoves (Board b, byte current) {	
+		byte[] candidates = new byte[13];
+		
+		byte col = (byte)((current&56)>>3);
+		byte row = (byte)(current&7);
+		byte count = 0;
+		
+		for (byte i = 1; i < 8; i++) {
+			if (col+i < 8 && row+i < 8) {
+				if (move(b,current,(byte)(col+i),(byte)(row+i))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col+i)<<3 | row+i);
+					count++;
+					if (b.board[col+i][row+i] != -128)
+						break;
+				} else {
+					break;
+				}
+			} else {
+				break;
 			}
 		}
 		
-		if (count != 13)
-			possibleMoves[count][0] = -1;
+		for (byte i = 1; i < 8; i++) {
+			if (col+i < 8 && row-i >= 0) {
+				if (move(b,current,(byte)(col+i),(byte)(row-i))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col+i)<<3 | row-i);
+					count++;
+					if (b.board[col+i][row-i] != -128)
+						break;
+				} else {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
 		
-		return possibleMoves;
+		for (byte i = 1; i < 8; i++) {
+			if (col-i >= 0 && row+i < 8) {
+				if (move(b,current,(byte)(col-i),(byte)(row+i))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col-i)<<3 | row+i);
+					count++;
+					if (b.board[col-i][row+i] != -128)
+						break;
+				} else {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		
+		for (byte i = 1; i < 8; i++) {
+			if (col-i >= 0 && row-i >= 0) {
+				if (move(b,current,(byte)(col-i),(byte)(row-i))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col-i)<<3 | row-i);
+					count++;
+					if (b.board[col-i][row-i] != -128)
+						break;
+				} else {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		
+		return candidates;
 	}
 }

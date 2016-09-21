@@ -1,144 +1,183 @@
 package Chess;
 
-public class King extends PieceAbstract {
+public class King implements PieceInterface {
 		
-	public King (Board board, Colour colour, int row, int col) {
-		super(board,colour,row,col);
-		possibleMoves = new int[8][2];
+	public King () { }
+	
+	public char getChar() {
+		return 'K';
 	}
 	
-	public King (Board board, Colour colour, int row, int col, PieceAbstract next) {
-		this(board,colour,row,col);
-		this.next = next;
-	}
-	
-	public String printChar() {
-		return "K";
-	}
-	
-	public boolean move(int r, int c) {
-		if (!inPlay)
-			return false;
-		if (r < 0 || r > 7)
-			return false;
-		if (c < 0 || c > 7)
-			return false;
-		if (colour == Colour.BLACK && r > row)
-			return false;
-		if (colour == Colour.WHITE && r < row)
-			return false;
-		
-		int diffRow = r-row;
-		int diffCol = c-col;
-		
-		// http://stackoverflow.com/questions/13988805/fastest-way-to-get-sign-in-java
-		int rowSign = (int) Math.signum(diffRow);
-		int colSign = (int) Math.signum(diffCol);
-		
+	public boolean move (Board b, byte current, byte newCol, byte newRow) {
 		boolean canMove = false;
-		Rook canCastle = null;
-		if (us[r][c] == null) {
-			if (diffCol == 2 && !board.inCheck(colour) && oldPosition == null) {
-				if (row == 0) {
-					if (board.white[0][7] != null && board.white[0][7].printChar().equals("R")) {
-						Rook rook = (Rook) board.white[0][7];
-						if (!rook.hasMoved() && them[0][6] == null && us[0][5] == null && them[0][5] == null)
-							canMove = true;
-							canCastle = rook;
+		
+		int diffCol = ((current&56)>>3)-newCol;
+		int diffRow = (current&7)-newRow;
+		
+		if (diffRow > 1 || diffRow < -1)
+			return false;
+		if (b.board[newCol][newRow] != -128 && (-128&b.pieces[b.board[newCol][newRow]]) == (-128&current))
+			return false;
+		
+		byte col = (byte) ((current&56)>>3);
+		byte row = (byte) (current&7);
+		byte[] tempMove = b.tempMove.pieces;
+		
+		if ((-128&current) == -128) {
+			if (diffCol < 2 || diffCol > -2) {
+				if (b.board[newCol][newRow] == -128 || b.board[newCol][newRow] > 15)
+					canMove = true;
+			} else if (col == 4 && row == 7) {
+				if (diffCol == 2 && b.board[0][7] == 2 && b.board[3][7] == -128 && b.board[2][7] == -128 && b.board[1][7] == -128) { // queenside
+					if (!b.inCheck(current)) {
+						OldPosition op1 = b.moveList;
+						while (op1 != null) {
+							if (op1.pieces[0] == 2)
+								return false;
+							op1 = op1.next;
+						}
+						tempMove[2] = -128;
+						canMove = true;
 					}
-				} else {
-					if (board.black[7][7] != null && board.black[7][7].printChar().equals("R")) {
-						Rook rook = (Rook) board.black[7][7];
-						if (!rook.hasMoved() && them[7][6] == null && us[7][5] == null && them[7][5] == null)
-							canMove = true;
-							canCastle = rook;
+				} else if (diffCol == -2 && b.board[7][7] == 3 && b.board[5][7] == -128 && b.board[6][7] == -128) { // kingside
+					if (!b.inCheck(current)) {
+						OldPosition op2 = b.moveList;
+						while (op2 != null) {
+							if (op2.pieces[0] == 3)
+								return false;
+							op2 = op2.next;
+						}
+						tempMove[2] = -64;
+						canMove = true;
 					}
 				}
-			} else if (diffCol == -2 && !board.inCheck(colour) && oldPosition == null) {
-				if (row == 0) {
-					if (board.white[0][0] != null && board.white[0][0].printChar().equals("R")) {
-						Rook rook = (Rook) board.white[0][0];
-						if (!rook.hasMoved() && them[0][2] == null && us[0][1] == null && them[0][1] == null && us[0][3] == null && them[0][3] == null)
-							canMove = true;
-							canCastle = rook;
+			}
+		} else {
+			if (diffCol < 2 || diffCol > -2) {
+				if (b.board[newCol][newRow] < 16)
+					canMove = true;
+			} else if (col == 4 && row == 0) {
+				if (diffCol == 2 && b.board[0][0] == 18 && b.board[3][0] == -128 && b.board[2][0] == -128 && b.board[1][0] == -128) { // queenside
+					if (!b.inCheck(current)) {
+						OldPosition op3 = b.moveList;
+						while (op3 != null) {
+							if (op3.pieces[0] == 18)
+								return false;
+							op3 = op3.next;
+						}
+						tempMove[2] = -128;
+						canMove = true;
 					}
-				} else {
-					if (board.black[7][0] != null && board.black[7][0].printChar().equals("R")) {
-						Rook rook = (Rook) board.black[7][0];
-						if (!rook.hasMoved() && them[7][2] == null && us[7][1] == null && them[7][1] == null && us[7][3] == null && them[7][3] == null)
-							canMove = true;
-							canCastle = rook;
+				} else if (diffCol == -2 && b.board[7][0] == 19 && b.board[5][0] == -128 && b.board[6][0] == -128) { // kingside
+					if (!b.inCheck(current)) {
+						OldPosition op4 = b.moveList;
+						while (op4 != null) {
+							if (op4.pieces[0] == 19)
+								return false;
+							op4 = op4.next;
+						}
+						tempMove[2] = -64;
+						canMove = true;
 					}
 				}
-			} else if (diffRow > -2 && diffRow < 2 && diffCol > -2 && diffCol < 2) {
-				canMove = true;
 			}
 		}
 		
 		if (canMove) {
-			if (canCastle != null)
-				canCastle.castle();
-			updateBoard(r,c);
-			if (board.calcCheck(colour)) {
-				undoMove();
-				board.noCheck(colour);
-				canMove = false;
+			tempMove[0] = b.board[(current&56)>>3][current&7];
+			//if (tempMove[0] == -128)
+				//System.out.println(current);
+			//	return false;
+			tempMove[1] = current;
+			
+			b.tempBoard((byte)((current&56)>>3), (byte)(current&7), newCol, newRow);
+			
+			if (b.inCheck(current)) {
+				if (b.calcCheck(current)) {
+					b.undoTemp();
+					canMove = false;
+				}
+			} else {
+				if (b.calcCheck(current)) {
+					b.undoTemp();
+					b.noCheck(current);
+					canMove = false;
+				}
 			}
 		}
-		
+
 		return canMove;
 	}
 	
-	public PieceAbstract undoMove() {
-		if (oldPosition == null)
-			return this;
+	public byte[] calcPossibleMoves (Board b, byte current) {
+		byte[] candidates = new byte[8];
 		
-		OldPosition op = oldPosition;
-		oldPosition = oldPosition.next;
-		board.moveList.removeFirst();
+		byte col = (byte)((current&56)>>3);
+		byte row = (byte)(current&7);
+		byte count = 0;
 		
-		if (oldPosition == null && row == 0 && col == 2) {
-			((Rook) board.white[0][3]).undoCastle();
-		} else if (oldPosition == null && row == 0 && col == 6) {
-			((Rook) board.white[0][5]).undoCastle();
-		} else if (oldPosition == null && row == 7 && col == 2) {
-			((Rook) board.white[7][3]).undoCastle();
-		} else if (oldPosition == null && row == 7 && col == 6) {
-			((Rook) board.white[7][5]).undoCastle();
-		}
-		
-		us[op.getRow()][op.getCol()] = us[row][col];
-		us[row][col] = null;
-		
-		if (captured != null) {
-			them[row][col] = captured;
-			captured.inPlay = true;
-		}
-		
-		row = op.getRow();
-		col = op.getCol();
-		captured = op.captured;
-		
-		board.calcCheck(Colour.BLACK);
-		board.calcCheck(Colour.WHITE);
-		return this;
-	}
-	
-	public int[][] calcPossibleMoves() {
-		int[][] candidates = {{row,col+1},{row,col-1},{row+1,col},{row+1,col+1},{row+1,col-1},{row-1,col},{row-1,col+1},{row-1,col-1},{row+2,col},{row-2,col}};
-		
-		int count = 0;
-		for (int i = 0; i < 10; i++) {
-			if (move(candidates[i][0],candidates[i][1])) {
-				this.undoMove();
-				possibleMoves[count] = candidates[i];
+		if (row+1 < 8) {
+			if (move(b,current,col,(byte)(row+1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | col<<3 | row+1);
+				count++;
+			}
+			if (col+1 < 8 && move(b,current,(byte)(col+1),(byte)(row+1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+1)<<3 | row+1);
+				count++;
+			}
+			if (col-1 >= 0  && move(b,current,(byte)(col-1),(byte)(row+1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-1)<<3 | row+1);
 				count++;
 			}
 		}
 		
-		if (count != 8)
-			possibleMoves[count][0] = -1;
+		if (row-1 >= 0) {
+			if (move(b,current,col,(byte)(row-1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | col<<3 | row-1);
+				count++;
+			}
+			if (col+1 < 8 && move(b,current,(byte)(col+1),(byte)(row-1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+1)<<3 | row-1);
+				count++;
+			}
+			if (col-1 >= 0  && move(b,current,(byte)(col-1),(byte)(row-1))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-1)<<3 | row-1);
+				count++;
+			}
+		}
 		
-		return possibleMoves;
+		if (col+1 < 8) {
+			if (move(b,current,(byte)(col+1),row)) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+1)<<3 | row);
+				count++;
+			}
+			if (col+2 < 8 && move(b,current,(byte)(col+2),row)) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+2)<<3 | row);
+				count++;
+			}
+		}
+		
+		if (col-1 >= 0) {
+			if (move(b,current,(byte)(col-1),row)) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-1)<<3 | row);
+				count++;
+			}
+			if (col-2 >= 0 && move(b,current,(byte)(col-2),row)) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-2)<<3 | row);
+				count++;
+			}
+		}
+
+		return candidates;
 	}
 }

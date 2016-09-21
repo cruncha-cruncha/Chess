@@ -6,16 +6,28 @@ import java.util.HashSet;
 public class IO implements PlayerInterface {
 	
 	private Scanner in;
-	private Board board;
-	private Colour colour;
+	private Board b;
+	private byte colour;
 
 	public IO () {
 		in = new Scanner(System.in);
-		board = new Board();
-		setup();
-		board.go();
-		System.out.println("play again?");
-		// do something
+		master();
+	}
+	
+	private void master () {
+		String input;
+		for ( ; ; ) {
+			setup();
+			b.go();
+			for ( ; ; ) {
+				System.out.print("play again (y/n): ");
+				input = in.next().toLowerCase();
+				if (input.equals("q") || input.equals("n"))
+					System.exit(0);
+				if (input.equals("y"))
+					break;
+			}
+		}
 	}
 	
 	private void setup() {
@@ -23,17 +35,20 @@ public class IO implements PlayerInterface {
 		
 		System.out.println("press q at any time to quit");
 		
-		System.out.println("load from file (y/n): ");
-		// do something
+		for ( ; ; ) {
+			System.out.println("load from file (y/n): ");
+			b = new Board();
+			break;
+		}
 		
 		for ( ; ; ) {
 			System.out.print("b or w? ");
 			input = in.next();
 			if (input.equals("b")) {
-				colour = Colour.BLACK;
+				colour = -128;
 				break;
 			} else if (input.equals("w")) {
-				colour = Colour.WHITE;
+				colour = 0;
 				break;
 			} else if (input.equals("q")) {
 				System.exit(0);
@@ -45,75 +60,66 @@ public class IO implements PlayerInterface {
 			System.out.print("human vs (1) human or (2) computer? ");
 			input = in.next();
 			if (input.equals("1")) {
-				rival = new Human(board,colour);
+				rival = new Human(b,colour);
 				break;
 			} else if (input.equals("2")) {
-				rival = new Computer(board,colour);
+				rival = new Computer(b,colour);
 				break;
 			} else if (input.equals("Q")) {
 				System.exit(0);
 			}
 		}
 		
-		board.setPlayers(this,rival);
+		b.setPlayers(this,rival);
 		
 		System.out.println("please use coordinate notation");
 		System.out.println("ex: E2 E4\n");
 	}
 	
-	public Colour getColour() {
+	public byte getColour() {
 		return colour;
 	}
+
 	
-	public void setColour(Colour colour) {
+	public void setColour(byte colour) {
 		this.colour = colour;
 	}
 	
 	public void go() {
 		String input;
 		for ( ; ; ) {
-			int[] aMove = getMove();
-			if (aMove[0] == -1) {
-				board.undo();
-				board.printBoard();
-				break;
+			byte[] aMove = getMove();
+			if (!b.move(this,aMove)) {
+				System.out.println(" invalid move");
 			} else {
-				if (!board.move(this,aMove)) {
-					System.out.println(" invalid move");
-				} else {
-					board.printBoard();
-					break;
-				}
+				b.printBoard();
+				break;
 			}
 		}
 	}
 	
-	private int[] getMove() {
+	private byte[] getMove() {
 		char[] parsed;
-		int[] out = new int[4];
+		byte[] out = new byte[4];
 		for ( ; ; ) {
 			System.out.print("move: ");
 			parsed = in.next().toUpperCase().toCharArray();
 			if (parsed.length == 2 && parsed[0] >= 65 && parsed[0] <= 72 && parsed[1] >= 49 && parsed[1] <= 56) {
-				int oldRow = parsed[1]-49;
-				int oldCol = parsed[0]-65;
-				if (board.pieceAt(colour,oldRow,oldCol)) {
+				byte oldCol = (byte) (parsed[0]-65); 
+				byte oldRow = (byte) (parsed[1]-49); 
+				if (b.board[oldCol][oldRow] != -128 && (-128&b.pieces[b.board[oldCol][oldRow]]) == colour) {
 					parsed = in.next().toUpperCase().toCharArray();
 					if (parsed.length == 2 && parsed[0] >= 65 && parsed[0] <= 72 && parsed[1] >= 49 && parsed[1] <= 56) {
-						int newRow = parsed[1]-49;
-						int newCol = parsed[0]-65;
-						out[0] = oldRow;
-						out[1] = oldCol;
-						out[2] = newRow;
-						out[3] = newCol;
+						out[0] = oldCol;
+						out[1] = oldRow;
+						out[2] = (byte) (parsed[0]-65);
+						out[3] = (byte) (parsed[1]-49); 
 						break;
 					}
 				}
 			}
 			if (parsed[0] == 'Q') {
 				System.exit(0);
-			} else if (parsed.length == 4 && parsed[0] == 'U' && parsed[1] == 'N' && parsed[2] == 'D' && parsed[3] == 'O') {
-				out[0] = -1;
 			} else {
 				System.out.println(" invalid coordinate");
 				in = new Scanner(System.in);
@@ -122,7 +128,7 @@ public class IO implements PlayerInterface {
 		return out;
 	}
 	
-	public String choosePawnPromo() {
+	public char choosePawnPromo() {
 		String promo;
 		for ( ; ; ) {
 			System.out.print("promote pawn to (Q,R,B,N): ");
@@ -133,8 +139,7 @@ public class IO implements PlayerInterface {
 			if (promo.equals("Q") || promo.equals("R") || promo.equals("B") || promo.equals("N"))
 				break;
 		}
-
-		return promo;
+		return promo.charAt(0);
 	}
 	
 	public static void main (String[] args) {

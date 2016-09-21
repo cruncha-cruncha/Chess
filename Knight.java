@@ -1,79 +1,121 @@
 package Chess;
 
-public class Knight extends PieceAbstract {
+public class Knight implements PieceInterface {
 	
-	public Knight (Board board, Colour colour, int row, int col) {
-		super(board,colour,row,col);
-		possibleMoves = new int[8][2];
+	public Knight () { }
+	
+	public char getChar() {
+		return 'N';
 	}
 	
-	public Knight (Board board, Colour colour, int row, int col, PieceAbstract next) {
-		this(board,colour,row,col);
-		this.next = next;
-	}
-	
-	public String printChar() {
-		return "N";
-	}
-	
-	public boolean move(int r, int c) {
-		if (!inPlay)
-			return false;
-		if (r < 0 || r > 7)
-			return false;
-		if (c < 0 || c > 7)
-			return false;
-		if (colour == Colour.BLACK && r > row)
-			return false;
-		if (colour == Colour.WHITE && r < row)
-			return false;
+	public boolean move (Board b, byte current, byte newCol, byte newRow) {
+		int diffCol = Math.abs(((current&56)>>3)-newCol);
+		int diffRow = Math.abs((current&7)-newRow);
 		
-		boolean canMove = false;
-		int diffRow = Math.abs(r-row);
-		int diffCol = Math.abs(c-col);
+		if (diffRow == 1 && diffCol == 2) {
+			return canMove(b,current,newRow,newCol);
+		} else if (diffRow == 2 && diffCol == 1) {
+			return canMove(b,current,newCol,newRow);
+		}
 		
-		if (us[r][c] == null) {
-			if (diffRow == 1 && diffCol == 2) {
-				canMove = true;
-			} else if (diffRow == 2 && diffCol == 1) {
-				canMove = true;
+		return false;
+	}
+	
+	private boolean canMove (Board b, byte current, byte newCol, byte newRow) {
+		byte[] tempMove = b.tempMove.pieces;
+		
+		if (b.board[newCol][newRow] != -128) {
+				//if (b.board[newCol][newRow] != -128 && ((b.board[newCol][newRow] < 16 && (-128&current) == 1) || (b.board[newCol][newRow] > 15 && (-128&current) == 0))) {
+				if (b.board[newCol][newRow] != -128 && (-128&b.pieces[b.board[newCol][newRow]]) == (-128&current)) {
+					return false;
+				} else {
+					tempMove[2] = b.board[newCol][newRow];
+				}
+		} else {
+			tempMove[2] = 0;
+		}
+		
+		byte col = (byte) ((current&56)>>3);
+		byte row = (byte) (current&7);
+		
+		tempMove[0] = b.board[col][row];
+		tempMove[1] = current;
+		
+		b.tempBoard(col, row, newCol, newRow);
+		
+		if (b.inCheck(current)) {
+			if (b.calcCheck(current)) {
+				b.undoTemp();
+				return false;
+			}
+		} else {
+			if (b.calcCheck(current)) {
+				b.undoTemp();
+				b.noCheck(current);
+				return false;
 			}
 		}
 		
-		if (canMove) {
-			updateBoard(r,c);
-			if (board.inCheck(colour)) {
-				if (board.calcCheck(colour)) {
-					super.undoMove();
-					canMove = false;
-				}
-			} else {
-				if (board.calcCheck(colour)) {
-					super.undoMove();
-					board.noCheck(colour);
-					canMove = false;
-				}
-			}
-		}
-		
-		return canMove;
+		return true;
 	}
 	
-	public int[][] calcPossibleMoves() {
-		int[][] candidates = {{row+1,col+2},{row+1,col-2},{row+2,col+1},{row+2,col-1},{row-1,col+2},{row-1,col-2},{row-2,col+1},{row-2,col-1}};
+	public byte[] calcPossibleMoves (Board b, byte current) {		
+		byte[] candidates = new byte[8];
 		
-		int count = 0;
-		for (int i = 0; i < 8; i++) {
-			if (move(candidates[i][0],candidates[i][1])) {
-				this.undoMove();
-				possibleMoves[count] = candidates[i];
+		byte col = (byte)((current&56)>>3);
+		byte row = (byte)(current&7);
+		byte count = 0;
+		
+		if (col+1 < 8) {
+			if (row+2 < 8 && canMove(b,current,(byte)(col+1),(byte)(row+2))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+1)<<3 | row+2);
 				count++;
 			}
+			if (row-2 >= 0 && canMove(b,current,(byte)(col+1),(byte)(row-2))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col+1)<<3 | row-2);
+				count++;
+			}
+			if (col+2 < 8) {
+				if (row+1 < 8 && canMove(b,current,(byte)(col+2),(byte)(row+1))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col+2)<<3 | row+1);
+					count++;
+				}
+				if (row-1 >= 0 && canMove(b,current,(byte)(col+2),(byte)(row-1))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col+2)<<3 | row-1);
+					count++;
+				}
+			}
 		}
 		
-		if (count != 8)
-			possibleMoves[count][0] = -1;
+		if (col-1 >= 0) {
+			if (row+2 < 8 && canMove(b,current,(byte)(col-1),(byte)(row+2))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-1)<<3 | row+2);
+				count++;
+			}
+			if (row-2 >= 0 && canMove(b,current,(byte)(col-1),(byte)(row-2))) {
+				b.undoTemp();
+				candidates[count] = (byte) (-64&current | (col-1)<<3 | row-2);
+				count++;
+			}
+			if (col-2 >= 0) {
+				if (row+1 < 8 && canMove(b,current,(byte)(col-2),(byte)(row+1))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col-2)<<3 | row+1);
+					count++;
+				}
+				if (row-1 >= 0 && canMove(b,current,(byte)(col-2),(byte)(row-1))) {
+					b.undoTemp();
+					candidates[count] = (byte) (-64&current | (col-2)<<3 | row-1);
+					count++;
+				}
+			}
+		}
 		
-		return possibleMoves;
+		return candidates;
 	}
 }

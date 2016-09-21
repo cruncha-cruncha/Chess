@@ -1,16 +1,7 @@
 package Chess;
 
 public interface PieceInterface {
-	public boolean move(int r, int c) throws PawnPromotion;
-	public PieceAbstract undoMove();
-	public int[] getCoor();
-	public int getRow();
-	public int getCol();
-	public int getOldRow();
-	public int getOldCol();
-	public Colour getColour();
-	public String printChar();
-	public Board getBoard();
-	public boolean fillHistory(OldPosition op, PieceAbstract captured);
-	public int[][] calcPossibleMoves();
+	public boolean move (Board b, byte current, byte newCol, byte newRow) throws PawnPromotion;
+	public char getChar ();
+	public byte[] calcPossibleMoves (Board b, byte current) throws PawnPromotion;
 }
