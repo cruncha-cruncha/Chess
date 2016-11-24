@@ -3,148 +3,122 @@ package Chess;
 public final class Pawn implements PieceInterface {
 	private int startRow, enPassant;
 	private boolean capturePassant;
+	private Board b;
 	
-	public Pawn () { }
+	public Pawn (Board b) { 
+		this.b = b;
+	}
 	
 	public char getChar() { 
 		return 'P';
 	}
 	
-	public boolean move (Board b, byte current, byte newCol, byte newRow) throws PawnPromotion {
+	public boolean validateMove (byte current, byte next) {
+		byte oldCol = (byte) ((56&current)>>3);
+		byte oldRow = (byte) (7&current);
+		byte newCol = (byte) ((56&next)>>3);
+		byte newRow = (byte) (7&next);
 		
-		boolean canMove = false;
+		int diffCol = newCol-oldCol;
+		int diffRow = newRow-oldRow;
+		byte oldPawn;
 		
-		byte oldCol = (byte) ((current&56)>>3);
-		byte oldRow = (byte) (current&7);
-		
-		byte[] tempMove = b.tempMove.pieces;
-		
-		if ((-128&current) == -128) {
-			// black pawn
-			if (oldCol == newCol) {
-				if (oldRow-newRow == 1 && b.board[oldCol][newRow] == -128) {
-					tempMove[2] = 0;
-					canMove = true;
-				} else if (oldRow-newRow == 2 && oldRow == 6 && b.board[oldCol][newRow+1] == -128 && b.board[oldCol][newRow] == -128) {
-					tempMove[2] = 0;
-					canMove = true;
-				}
-			} else {
-				if ((oldCol+1 == newCol || oldCol-1 == newCol) && oldRow-newRow == 1) {
-					if (b.board[newCol][newRow] > 15) {
-						tempMove[2] = b.board[newCol][newRow];
-						canMove = true;
-					} else if (oldRow == 3 && b.board[newCol][oldRow] != -128 && b.pieceNames[b.board[newCol][oldRow]] == 'P') {
-						byte[] enPass = b.moveList.pieces;
-						if (enPass != null && enPass[0] == b.board[newCol][oldRow]) {
-							tempMove[2] = b.board[newCol][oldRow];
-							canMove = true;
-						}
-					}
-				}
+		if (Math.abs(diffCol) == 1 && diffRow == -1 && (-128&current) == -128) {
+			if (b.board[newCol][newRow] > 15) {
+				return true;
+			} else if (newRow == 2 && b.board[newCol][oldRow] > 15) {
+				// check en passant
+				oldPawn = (byte) (65 | newCol<<3);
+				if (b.pieceNames[b.board[newCol][oldRow]] == 'P' && b.board[newCol][oldRow] == b.moveHistory.pieces[1] && b.moveHistory.pieces[2] == oldPawn) 
+					return true;
 			}
-		} else {
-			// white pawn
-			if (oldCol == newCol) {
-				if (newRow-oldRow == 1 && b.board[oldCol][newRow] == -128) {
-					tempMove[2] = 0;
-					canMove = true;
-				} else if (newRow-oldRow == 2 && oldRow == 1 && b.board[oldCol][oldRow+1] == -128 && b.board[oldCol][newRow] == -128) {
-					tempMove[2] = 0;
-					canMove = true;
-				}
-			} else {
-				if ((oldCol+1 == newCol || oldCol-1 == newCol) && newRow-oldRow == 1) {
-					if (b.board[newCol][newRow] >= 0 && b.board[newCol][newRow] < 16) {
-						tempMove[2] = b.board[newCol][newRow];
-						canMove = true;
-					} else if (oldRow == 4 && b.board[newCol][oldRow] != -128 && b.pieceNames[b.board[newCol][oldRow]] == 'P') {
-						byte[] enPass = b.moveList.pieces;
-						if (enPass != null && enPass[0] == b.board[newCol][oldRow]) {
-							tempMove[2] = b.board[newCol][oldRow];
-							canMove = true;
-						}
-					}
-				}
+		} else if (Math.abs(diffCol) == 1 && diffRow == 1 && (-128&current) == 0) {
+			if (b.board[newCol][newRow] != -128 && b.board[newCol][newRow] < 16) {
+				return true;
+			} else if (newRow == 5 && b.board[newCol][oldRow] != -128 && b.board[newCol][oldRow] < 16) {
+				// check en passant
+				oldPawn = (byte) (-58 | newCol<<3);
+				if (b.pieceNames[b.board[newCol][oldRow]] == 'P' && b.board[newCol][oldRow] == b.moveHistory.pieces[1] && b.moveHistory.pieces[2] == oldPawn)
+					return true;
+			}
+		} else if (diffCol == 0) {
+			if (diffRow == -2) {
+				if ((-128&current) == -128 && oldRow == 6 && b.board[oldCol][5] == -128 && b.board[newCol][4] == -128)
+					return true;
+			} else if (diffRow == -1) {
+				if ((-128&current) == -128 && b.board[newCol][newRow] == -128)
+					return true;
+			} else if (diffRow == 1) {
+				if ((-128&current) == 0 && b.board[newCol][newRow] == -128)
+					return true;
+			} else if (diffRow == 2) {
+				if ((-128&current) == 0 && oldRow == 1 && b.board[oldCol][2] == -128 && b.board[newCol][3] == -128)
+					return true;
 			}
 		}
-		
-		if (canMove) {
-			tempMove[0] = b.board[oldCol][oldRow];
-			tempMove[1] = current;
-			
-			b.tempBoard(oldCol, oldRow, newCol, newRow);
-			
-			if (b.inCheck(current)) {
-				if (b.calcCheck(current)) {
-					b.undoTemp();
-					canMove = false;
-				}
-			} else {
-				if (b.calcCheck(current)) {
-					b.undoTemp();
-					b.noCheck(current);
-					canMove = false;
-				}
-			}
-		}
-		
-		if (canMove)
-			if (newRow == 0 || newRow == 7)
-				throw new PawnPromotion();
-		
-		return canMove;
+
+		return false;
 	}
 	
-	public byte[] calcPossibleMoves (Board b, byte current) throws PawnPromotion {
-		byte[] candidates = new byte[4];
-		
+	public byte[] getMoves (byte current) {
+		byte[] candidates = new byte[5];
 		byte col = (byte)((current&56)>>3);
 		byte row = (byte)(current&7);
-		byte count = 0;
+		int size = 0;
+		
+		// -57 = keep row
+		// -8 = keep col
 		
 		if ((-128&current) == -128) {
-			if (move(b,current,col,(byte)(row-1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64 | col<<3 | row-1);
-				count++;
+			if (b.board[col][row-1] == -128) {
+				candidates[size++] = (byte) (-8&current | row-1);
+				if (row == 6 && b.board[col][4] == -128)
+					candidates[size++] = (byte) (-8&current | 4);
 			}
-			if (row == 6 && move(b,current,col,(byte)(row-2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64 | col<<3 | row-2);
-				count++;
+			if (col-1 >= 0) {
+				if (b.board[col-1][row-1] > 15) {
+					candidates[size++] = (byte) (-64&current | (col-1)<<3 | row-1);
+				} else if (row == 3 && b.board[col-1][3] > 23 && b.board[col-1][3] == b.moveHistory.pieces[1]) {
+					byte oldPawn = (byte) (65 | (col-1)<<3);
+					if (b.moveHistory.pieces[2] == oldPawn)
+						candidates[size++] = (byte) (-62 | (col-1)<<3);
+				}
 			}
-			if (col < 7 && move(b,current,(byte)(col+1),(byte)(row-1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64 | (col+1)<<3 | row-1); 
-				count++;
-			}
-			if (col > 0 && move(b,current,(byte)(col-1),(byte)(row-1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64 | (col-1)<<3 | row-1);
+			if (col+1 < 8) {
+				if (b.board[col+1][row-1] > 15) {
+					candidates[size++] = (byte) (-64&current | (col+1)<<3 | row-1);
+				} else if (row == 3 && b.board[col+1][3] > 23 && b.board[col+1][3] == b.moveHistory.pieces[1]) {
+					byte oldPawn = (byte) (65 | (col+1)<<3);
+					if (b.moveHistory.pieces[2] == oldPawn)
+						candidates[size++] = (byte) (-62 | (col+1)<<3);
+				}
 			}
 		} else {
-			if (move(b,current,col,(byte)(row+1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (64 | col<<3 | row+1);
-				count++;
+			if (b.board[col][row+1] == -128) {
+				candidates[size++] = (byte) (-8&current | row+1);
+				if (row == 1 && b.board[col][3] == -128)
+					candidates[size++] = (byte) (-8&current | 3);
 			}
-			if (row == 1 && move(b,current,col,(byte)(row+2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (64 | col<<3 | row+2);
-				count++;
+			if (col-1 >= 0) {
+				if (b.board[col-1][row+1] != -128 && b.board[col-1][row+1] < 16) {
+					candidates[size++] = (byte) (-64&current | (col-1)<<3 | row+1);
+				} else if (row == 4 && b.board[col-1][4] > 7 && b.board[col-1][4] < 16 && b.board[col-1][4] == b.moveHistory.pieces[1]) {
+					byte oldPawn = (byte) (-58 | (col-1)<<3);
+					if (b.moveHistory.pieces[2] == oldPawn)
+						candidates[size++] = (byte) (69 | (col-1)<<3);
+				}
 			}
-			if (col < 7 && move(b,current,(byte)(col+1),(byte)(row-1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (64 | (col+1)<<3 | row-1);
-				count++;
-			}
-			if (col > 0 && move(b,current,(byte)(col-1),(byte)(row-1))) {
-				b.undoTemp();
-				candidates[count] = (byte) (64 | (col-1)<<3 | row-1);
+			if (col+1 < 8) {
+				if (b.board[col+1][row+1] > 15) {
+					candidates[size++] = (byte) (-64&current | (col+1)<<3 | row+1);
+				} else if (row == 4 && b.board[col+1][4] > 7 && b.board[col+1][4] < 16 && b.board[col+1][4] == b.moveHistory.pieces[1]) {
+					byte oldPawn = (byte) (-58 | (col+1)<<3);
+					if (b.moveHistory.pieces[2] == oldPawn)
+						candidates[size++] = (byte) (69 | (col+1)<<3);
+				}
 			}
 		}
-		
+
 		return candidates;
 	}
 

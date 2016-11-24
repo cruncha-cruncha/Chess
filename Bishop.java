@@ -2,123 +2,112 @@ package Chess;
 
 public class Bishop implements PieceInterface {
 	
-	public Bishop () { }
+	private Board b;
+	
+	public Bishop (Board b) {
+		this.b = b;
+	}
 	
 	public char getChar() {
 		return 'B';
 	}
 	
-	public boolean move (Board b, byte current, byte newCol, byte newRow) {
-		int diffCol = ((current&56)>>3)-newCol;
-		int diffRow = (current&7)-newRow;
+	public boolean validateMove (byte current, byte next) {
+		int diffCol = ((56&next)>>3)-((56&current)>>3);
+		int diffRow = (7&next)-(7&current);
 		
 		if (Math.abs(diffCol) != Math.abs(diffRow))
 			return false;
-		if (b.board[newCol][newRow] != -128 && (-128&b.pieces[b.board[newCol][newRow]]) == (-128&current))
-			return false;
 		
-		byte colSign = (byte) Math.signum(diffCol);
-		byte rowSign = (byte) Math.signum(diffRow);
-		
-		for (byte i = 1; i < Math.abs(diffCol); i++) {
-			if (b.board[newCol+(colSign*i)][newRow+(rowSign*i)] != -128)
+		int vCol = (diffCol == 0) ? 0 : diffCol / Math.abs(diffCol);
+		int vRow = (diffRow == 0) ? 0 : diffRow / Math.abs(diffRow);
+		int x = ((56&current)>>3) + vCol;
+		int y = (7&current) + vRow;
+		while (x != ((56&next)>>3) || y != (7&next)) {
+			if (b.board[x][y] != -128)
 				return false;
+			x += vCol;
+			y += vRow;
 		}
 		
-		byte[] tempMove = b.tempMove.pieces;
-		tempMove[0] = b.board[(current&56)>>3][current&7];
-		tempMove[1] = current;
+		System.out.println("HERE");
 		
-		if (b.board[newCol][newRow] != -128)
-			tempMove[2] = b.board[newCol][newRow];
-		
-		b.tempBoard((byte)((current&56)>>3), (byte)(current&7), newCol, newRow);
-		
-		if (b.inCheck(current)) {
-			if (b.calcCheck(current)) {
-				b.undoTemp();
+		// can capture, but not same colour
+		if ((-128&current) == -128) {
+			if (b.board[x][y] != -128 && b.board[x][y] < 16)
 				return false;
-			}
 		} else {
-			if (b.calcCheck(current)) {
-				b.undoTemp();
-				b.noCheck(current);
+			if (b.board[x][y] > 15)
 				return false;
-			}
 		}
 		
 		return true;
 	}
 	
-	public byte[] calcPossibleMoves (Board b, byte current) {	
-		byte[] candidates = new byte[13];
-		
+	public byte[] getMoves (byte current) {
 		byte col = (byte)((current&56)>>3);
 		byte row = (byte)(current&7);
-		byte count = 0;
 		
-		for (byte i = 1; i < 8; i++) {
-			if (col+i < 8 && row+i < 8) {
-				if (move(b,current,(byte)(col+i),(byte)(row+i))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col+i)<<3 | row+i);
-					count++;
-					if (b.board[col+i][row+i] != -128)
-						break;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
+		byte[] candidates = new byte[14];
+		int size = 0;
 		
-		for (byte i = 1; i < 8; i++) {
-			if (col+i < 8 && row-i >= 0) {
-				if (move(b,current,(byte)(col+i),(byte)(row-i))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col+i)<<3 | row-i);
-					count++;
-					if (b.board[col+i][row-i] != -128)
-						break;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
+		// -57 = keep row
+		// -8 = keep col
+		int x = row+1;
+		int y = col+1;
 		
-		for (byte i = 1; i < 8; i++) {
-			if (col-i >= 0 && row+i < 8) {
-				if (move(b,current,(byte)(col-i),(byte)(row+i))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col-i)<<3 | row+i);
-					count++;
-					if (b.board[col-i][row+i] != -128)
-						break;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-		
-		for (byte i = 1; i < 8; i++) {
-			if (col-i >= 0 && row-i >= 0) {
-				if (move(b,current,(byte)(col-i),(byte)(row-i))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col-i)<<3 | row-i);
-					count++;
-					if (b.board[col-i][row-i] != -128)
-						break;
-				} else {
-					break;
-				}
-			} else {
-				break;
-			}
+		if ((-128&current) == -128) {
+			while (x < 8 && y < 8 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x++)<<3 | y++);
+			if (x < 8 && y < 8 && b.board[x][y] > 15)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+			
+			x = col+1;
+			y = row-1;
+			while (x < 8 && y >= 0 && b.board[x][y] == -128) 
+				candidates[size++] = (byte) (-64&current | (x++)<<3 | y--);
+			if (x < 8 && y >= 0 && b.board[x][y] > 15)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+				
+			x = col-1;
+			y = row+1;
+			while (x >= 0 && y < 8 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x--)<<3 | y++);
+			if (x >= 0 && y < 8 && b.board[x][y] > 15)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+				
+			x = col-1;
+			y = row-1;
+			while (x >= 0 && y >= 0 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x--)<<3 | y--);
+			if (x >= 0 && y >= 0 && b.board[x][y] > 15)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+		} else {
+			while (x < 8 && y < 8 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x++)<<3 | y++);
+			if (x < 8 && y < 8 && b.board[x][y] < 16)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+			
+			x = col+1;
+			y = row-1;
+			while (x < 8 && y >= 0 && b.board[x][y] == -128) 
+				candidates[size++] = (byte) (-64&current | (x++)<<3 | y--);
+			if (x < 8 && y >= 0 && b.board[x][y] < 16)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+				
+			x = col-1;
+			y = row+1;
+			while (x >= 0 && y < 8 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x--)<<3 | y++);
+			if (x >= 0 && y < 8 && b.board[x][y] < 16)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
+				
+			x = col-1;
+			y = row-1;
+			while (x >= 0 && y >= 0 && b.board[x][y] == -128)
+				candidates[size++] = (byte) (-64&current | (x--)<<3 | y--);
+			if (x >= 0 && y >= 0 && b.board[x][y] < 16)
+				candidates[size++] = (byte) (-64&current | x<<3 | y);
 		}
 		
 		return candidates;

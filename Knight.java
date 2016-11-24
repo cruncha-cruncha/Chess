@@ -2,120 +2,213 @@ package Chess;
 
 public class Knight implements PieceInterface {
 	
-	public Knight () { }
+	private Board b;
+	
+	public Knight (Board b) {
+		this.b = b;
+	}
 	
 	public char getChar() {
 		return 'N';
 	}
 	
-	public boolean move (Board b, byte current, byte newCol, byte newRow) {
-		int diffCol = Math.abs(((current&56)>>3)-newCol);
-		int diffRow = Math.abs((current&7)-newRow);
+	public boolean validateMove (byte current, byte next) {
+		int diffCol = ((56&current)>>3)-((56&next)>>3);
+		int diffRow = (7&current)-(7&next);
+		
+		if ((Math.abs(diffCol) != 1 || Math.abs(diffRow) != 2) &&
+			(Math.abs(diffCol) != 2 || Math.abs(diffRow) != 1)) {
+			return false;
+		}
+		
+		byte[] n = {next,0};
 		
 		if (diffRow == 1 && diffCol == 2) {
-			return canMove(b,current,newRow,newCol);
+			if (checkCollisions(current,n)[0] == 0)
+				return false;
 		} else if (diffRow == 2 && diffCol == 1) {
-			return canMove(b,current,newCol,newRow);
-		}
-		
-		return false;
-	}
-	
-	private boolean canMove (Board b, byte current, byte newCol, byte newRow) {
-		byte[] tempMove = b.tempMove.pieces;
-		
-		if (b.board[newCol][newRow] != -128) {
-				//if (b.board[newCol][newRow] != -128 && ((b.board[newCol][newRow] < 16 && (-128&current) == 1) || (b.board[newCol][newRow] > 15 && (-128&current) == 0))) {
-				if (b.board[newCol][newRow] != -128 && (-128&b.pieces[b.board[newCol][newRow]]) == (-128&current)) {
-					return false;
-				} else {
-					tempMove[2] = b.board[newCol][newRow];
-				}
-		} else {
-			tempMove[2] = 0;
-		}
-		
-		byte col = (byte) ((current&56)>>3);
-		byte row = (byte) (current&7);
-		
-		tempMove[0] = b.board[col][row];
-		tempMove[1] = current;
-		
-		b.tempBoard(col, row, newCol, newRow);
-		
-		if (b.inCheck(current)) {
-			if (b.calcCheck(current)) {
-				b.undoTemp();
+			if (checkCollisions(current,n)[0] == 0)
 				return false;
-			}
-		} else {
-			if (b.calcCheck(current)) {
-				b.undoTemp();
-				b.noCheck(current);
-				return false;
-			}
 		}
 		
 		return true;
 	}
 	
-	public byte[] calcPossibleMoves (Board b, byte current) {		
-		byte[] candidates = new byte[8];
-		
+	private byte[] checkCollisions (byte current, byte[] candidates) {
+		byte count = 0;
+		byte i = 0;
+		if ((-128&current) == -128) {
+			while (candidates[i] != 0) {
+				if (b.board[(56&candidates[i])>>3][7&candidates[i]] == -128 || b.board[(56&candidates[i])>>3][7&candidates[i]] > 15) {
+					candidates[count++] = candidates[i];
+				}
+				i++;
+			}
+		} else {
+			while (candidates[i] != 0) {
+				if (b.board[(56&candidates[i])>>3][7&candidates[i]] < 16) {
+					candidates[count++] = candidates[i];
+				}
+				i++;
+			}
+		}
+		candidates[count] = 0;
+		return candidates;
+	}
+	
+	public byte[] getMoves (byte current) {
+		byte[] candidates = new byte[9];
 		byte col = (byte)((current&56)>>3);
 		byte row = (byte)(current&7);
-		byte count = 0;
-		
-		if (col+1 < 8) {
-			if (row+2 < 8 && canMove(b,current,(byte)(col+1),(byte)(row+2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64&current | (col+1)<<3 | row+2);
-				count++;
-			}
-			if (row-2 >= 0 && canMove(b,current,(byte)(col+1),(byte)(row-2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64&current | (col+1)<<3 | row-2);
-				count++;
-			}
-			if (col+2 < 8) {
-				if (row+1 < 8 && canMove(b,current,(byte)(col+2),(byte)(row+1))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col+2)<<3 | row+1);
-					count++;
-				}
-				if (row-1 >= 0 && canMove(b,current,(byte)(col+2),(byte)(row-1))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col+2)<<3 | row-1);
-					count++;
-				}
-			}
+				
+		byte state = 0;
+		if (row+2 < 8) {
+			state = (byte) (state | 1);
+		} else if (row+1 < 8) {
+			state = (byte) (state | 2);
+		}
+		if (col+2 < 8) {
+			state = (byte) (state | 4);
+		} else if (col+1 < 8) {
+			state = (byte) (state | 8);
+		}
+		if (row-2 >= 0) {
+			state = (byte) (state | 16);
+		} else if (row-1 >= 0) {
+			state = (byte) (state | 32);
+		}
+		if (col-2 >= 0) {
+			state = (byte) (state | 64);
+		} else if (col-1 >= 0) {
+			state = (byte) (state | -128);
 		}
 		
-		if (col-1 >= 0) {
-			if (row+2 < 8 && canMove(b,current,(byte)(col-1),(byte)(row+2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64&current | (col-1)<<3 | row+2);
-				count++;
-			}
-			if (row-2 >= 0 && canMove(b,current,(byte)(col-1),(byte)(row-2))) {
-				b.undoTemp();
-				candidates[count] = (byte) (-64&current | (col-1)<<3 | row-2);
-				count++;
-			}
-			if (col-2 >= 0) {
-				if (row+1 < 8 && canMove(b,current,(byte)(col-2),(byte)(row+1))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col-2)<<3 | row+1);
-					count++;
-				}
-				if (row-1 >= 0 && canMove(b,current,(byte)(col-2),(byte)(row-1))) {
-					b.undoTemp();
-					candidates[count] = (byte) (-64&current | (col-2)<<3 | row-1);
-					count++;
-				}
-			}
+		switch (state) {
+			case 85:
+				// all sides available
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[4] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[5] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[6] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[7] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 86:
+				// cannot move way up
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[4] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[5] = (byte) (-64&current | (col-2)<<3 | row+1);
+				break;
+			case 84:
+				// cannot move up
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[1] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[3] = (byte) (-64&current | (col-2)<<3 | row-1);
+				break;
+			case 90:
+				// cannot move way up or way right
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[1] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col-2)<<3 | row+1);
+				break;
+			case 80:
+				// cannot move up or right
+				candidates[0] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row-1);
+				break;
+			case 89:
+				// cannot move way right
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[3] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[4] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[5] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 81:
+				// cannot move right
+				candidates[0] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 105:
+				// cannot move way right or way down
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 65:
+				// cannot move right or down
+				candidates[0] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[1] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 101:
+				// cannot move way down
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[4] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[5] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 69:
+				// cannot move down
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case -91:
+				// cannot move way down or way left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 5:
+				// cannot move down or left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				break;
+			case -107:
+				// cannot move way left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[4] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[5] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 21:
+				// cannot move left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[3] = (byte) (-64&current | (col+1)<<3 | row-2);
+				break;
+			case -106:
+				// cannot move way up or way left
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[3] = (byte) (-64&current | (col-1)<<3 | row-2);
+				break;
+			case 20:
+				// cannot move up or left
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[1] = (byte) (-64&current | (col+1)<<3 | row-2);
+				break;
 		}
 		
-		return candidates;
+		return checkCollisions(current,candidates);
 	}
 }
