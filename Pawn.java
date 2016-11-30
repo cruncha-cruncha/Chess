@@ -72,8 +72,12 @@ public final class Pawn implements PieceInterface {
 		if ((-128&current) == -128) {
 			if (b.board[col][row-1] == -128) {
 				candidates[size++] = (byte) (-8&current | row-1);
-				if (row == 6 && b.board[col][4] == -128)
+				if (row == 6 && b.board[col][4] == -128) {
 					candidates[size++] = (byte) (-8&current | 4);
+				} else if (row == 1) {
+					// pawn gets promoted to either a queen or a knight
+					candidates[size++] = (byte) (-8&current | row-1);
+				}
 			}
 			if (col-1 >= 0) {
 				if (b.board[col-1][row-1] > 15) {
@@ -96,8 +100,12 @@ public final class Pawn implements PieceInterface {
 		} else {
 			if (b.board[col][row+1] == -128) {
 				candidates[size++] = (byte) (-8&current | row+1);
-				if (row == 1 && b.board[col][3] == -128)
+				if (row == 1 && b.board[col][3] == -128) {
 					candidates[size++] = (byte) (-8&current | 3);
+				} else if (row == 6) {
+					// pawn gets promoted to either a queen or a knight
+					candidates[size++] = (byte) (-8&current | row+1);
+				}
 			}
 			if (col-1 >= 0) {
 				if (b.board[col-1][row+1] != -128 && b.board[col-1][row+1] < 16) {
@@ -109,7 +117,7 @@ public final class Pawn implements PieceInterface {
 				}
 			}
 			if (col+1 < 8) {
-				if (b.board[col+1][row+1] > 15) {
+				if (b.board[col+1][row+1] != -128 && b.board[col+1][row+1] < 16) {
 					candidates[size++] = (byte) (-64&current | (col+1)<<3 | row+1);
 				} else if (row == 4 && b.board[col+1][4] > 7 && b.board[col+1][4] < 16 && b.board[col+1][4] == b.moveHistory.pieces[1]) {
 					byte oldPawn = (byte) (-58 | (col+1)<<3);

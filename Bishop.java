@@ -30,8 +30,6 @@ public class Bishop implements PieceInterface {
 			y += vRow;
 		}
 		
-		System.out.println("HERE");
-		
 		// can capture, but not same colour
 		if ((-128&current) == -128) {
 			if (b.board[x][y] != -128 && b.board[x][y] < 16)
@@ -53,8 +51,8 @@ public class Bishop implements PieceInterface {
 		
 		// -57 = keep row
 		// -8 = keep col
-		int x = row+1;
-		int y = col+1;
+		int x = col+1;
+		int y = row+1;
 		
 		if ((-128&current) == -128) {
 			while (x < 8 && y < 8 && b.board[x][y] == -128)

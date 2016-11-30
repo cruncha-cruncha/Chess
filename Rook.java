@@ -51,8 +51,8 @@ public class Rook implements PieceInterface {
 		
 		// -57 = keep row
 		// -8 = keep col
-		int x = row+1;
-		int y = col+1;
+		int x = col+1;
+		int y = row+1;
 		
 		if ((-128&current) == -128) {
 			while (y < 8 && b.board[col][y] == -128)

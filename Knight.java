@@ -60,7 +60,7 @@ public class Knight implements PieceInterface {
 		byte[] candidates = new byte[9];
 		byte col = (byte)((current&56)>>3);
 		byte row = (byte)(current&7);
-				
+
 		byte state = 0;
 		if (row+2 < 8) {
 			state = (byte) (state | 1);
@@ -118,6 +118,18 @@ public class Knight implements PieceInterface {
 				candidates[2] = (byte) (-64&current | (col-2)<<3 | row-1);
 				candidates[3] = (byte) (-64&current | (col-2)<<3 | row+1);
 				break;
+			case 82:
+				// cannot move way up or right
+				candidates[0] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row+1);
+				break;
+			case 88:
+				// cannote move up or way right
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[1] = (byte) (-64&current | (col-1)<<3 | row-2);
+				candidates[2] = (byte) (-64&current | (col-2)<<3 | row-1);
+				break;
 			case 80:
 				// cannot move up or right
 				candidates[0] = (byte) (-64&current | (col-1)<<3 | row-2);
@@ -145,6 +157,18 @@ public class Knight implements PieceInterface {
 				candidates[1] = (byte) (-64&current | (col-2)<<3 | row-1);
 				candidates[2] = (byte) (-64&current | (col-2)<<3 | row+1);
 				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 73:
+				// cannot move way right or down
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
+			case 97:
+				// cannot move right or way down
+				candidates[0] = (byte) (-64&current | (col-2)<<3 | row-1);
+				candidates[1] = (byte) (-64&current | (col-2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row+2);
 				break;
 			case 65:
 				// cannot move right or down
@@ -174,6 +198,18 @@ public class Knight implements PieceInterface {
 				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
 				candidates[3] = (byte) (-64&current | (col-1)<<3 | row+2);
 				break;
+			case 37:
+				// cannot move way down or left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col+2)<<3 | row-1);
+				break;
+			case -123:
+				// cannot move down or way left
+				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row+2);
+				break;
 			case 5:
 				// cannot move down or left
 				candidates[0] = (byte) (-64&current | (col+1)<<3 | row+2);
@@ -201,6 +237,18 @@ public class Knight implements PieceInterface {
 				candidates[1] = (byte) (-64&current | (col+2)<<3 | row-1);
 				candidates[2] = (byte) (-64&current | (col+1)<<3 | row-2);
 				candidates[3] = (byte) (-64&current | (col-1)<<3 | row-2);
+				break;
+			case -108:
+				// cannot move way left or up
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[1] = (byte) (-64&current | (col+1)<<3 | row-2);
+				candidates[2] = (byte) (-64&current | (col-1)<<3 | row-2);
+				break;
+			case 22:
+				// cannot move left or way up
+				candidates[0] = (byte) (-64&current | (col+2)<<3 | row+1);
+				candidates[1] = (byte) (-64&current | (col+2)<<3 | row-1);
+				candidates[2] = (byte) (-64&current | (col+1)<<3 | row-2);
 				break;
 			case 20:
 				// cannot move up or left

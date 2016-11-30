@@ -101,7 +101,7 @@ public class King implements PieceInterface {
 				candidates[count++] = (byte) (-64&current | (col-1)<<3 | row-1);
 			if (col-2 < 8 && CastleSync.canCastle((byte)(current-16))) {
 				// queenside
-				if (b.board[1][row] == -128 && b.board[2][row] == -128)
+				if (b.board[1][row] == -128 && b.board[3][row] == -128)
 					candidates[count++] = (byte) (current-16);
 			}
 		}

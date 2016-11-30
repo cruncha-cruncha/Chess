@@ -147,6 +147,10 @@ public class Board {
 				if (config[i][j] != 0) {
 					// fill two spaces, if they're already full, go to pawn section
 					int index = key.indexOf(config[i][j]);
+					char pieceName = key.charAt(index);
+					if (pieceName > 96)
+						pieceName = (char) (pieceName-32);
+
 					if (pieces[index] != 0) {
 						if (index != 1 && index != 17 && pieces[index+1] == 0) {
 							index += 1;
@@ -156,17 +160,19 @@ public class Board {
 								index += 1;
 						}
 					}
+
 					pieces[index] = (index < 16) ? (byte) (1<<7) : (byte) (0);
 					pieces[index] = (byte) (pieces[index] | (1<<6)); // IS THIS WORKING?? CRASHES WHEN 64 USED INSTEAD
 					pieces[index] = (byte) (pieces[index] | (i<<3));
 					pieces[index] = (byte) (pieces[index] | (j));
-					pieceNames[index] = (index < 16) ? (byte) key.charAt(index) : (byte) key.charAt(index-16);
+					pieceNames[index] = (byte) pieceName;
 				}
 			}
 		}
 	}
 	
 	private char[][] askBoard () {
+		System.out.println("<loading swing>");
 		char[][] out = new char[8][8];
 		AtomicBoolean paused = new AtomicBoolean(true); // is this skookum?
 		
@@ -189,10 +195,10 @@ public class Board {
 		DefaultTableModel model = new DefaultTableModel(data,pos);
 		JTable table = new JTable(model);
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		for (int i = 0; i < 9; i++) {
+		for (int i = 0; i < 9; i++)
 			table.getColumnModel().getColumn(i).setPreferredWidth(10);
-		}
 		table.putClientProperty("terminateEditOnFocusLost", true);
+		table.setGridColor(Color.black);
 		input.add(table);
 		mainFrame.add(input);
 		
@@ -225,7 +231,7 @@ public class Board {
 				}
 				
 				int[] count = new int[12];
-				String key = "kqrbkpKQRBNP";
+				String key = "kqrbnpKQRBNP";
 				outer:
 				for (int i = 0; i < 8; i++) {
 					for (int j = 0; j < 8; j++) {
@@ -312,6 +318,24 @@ public class Board {
 			System.out.print(columns[x]);
 		}
 		System.out.println("\n");
+	}
+
+	public PieceInterface getPiece (int index) {
+		switch(pieceNames[index]) {
+			case 75:
+				return king;
+			case 81:
+				return queen;
+			case 82:
+				return rook;
+			case 66:
+				return bishop;
+			case 78:
+				return knight;
+			case 80:
+				return pawn;
+		}
+		return null;
 	}
 	
 	public PieceInterface getPiece (byte index) {
@@ -492,14 +516,14 @@ public class Board {
 				if (current == -25 || current == 96) {
 					// sync not castle
 					CastleSync.set(current);
-					moveHistory.pieces[0] = 1;
+					moveHistory.pieces[0] = 2;
 				}
 			}
 		} else if (pieceNames[board[oldCol][oldRow]] == 'R') {
 			if (current == -57 || current == -1 || current == 64 || current == 120) {
 				// sync not castle
 				CastleSync.set(current);
-				moveHistory.pieces[0] = 1;
+				moveHistory.pieces[0] = 2;
 			}
 		} else if (pieceNames[board[oldCol][oldRow]] == 'P' && oldCol != newCol && board[newCol][newRow] == -128) {
 			// catch and handle en passant
@@ -623,8 +647,12 @@ public class Board {
 	}
 	
 	private class Shell implements PlayerInterface {
+		char promoChar = 'N';
 		public Colour getColour() { return Colour.BLACK; }
 		public void makeMove () { }
-		public char choosePawnPromo () { return 'Q'; }
+		public char choosePawnPromo () {
+			promoChar = (promoChar == 'N') ? 'Q' : 'N';
+			return promoChar;
+		}
 	}
 }
