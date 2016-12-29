@@ -1,12 +1,12 @@
 package Chess;
 
+/**
+ * Used to track move history, this class can form a basic
+ * linked list. 
+ */
 public class OldPosition {
-	public byte[] pieces;
-	public OldPosition prev;
-	
-	// CHANGE TO FOUR BITS, ONE FOR FLAGS
-	
-	// pieces[0] bits:
+
+	// pieces[0] (the flags byte) bits:
 	// 7 = en passant
 	// 6 = captured a piece non passant
 	// 5 = was in check
@@ -23,20 +23,19 @@ public class OldPosition {
 	// pieces[3] bits:
 	// 7-5 = unused
 	// 4-0 = index of captured piece
+	public byte[] pieces;
+	public OldPosition prev;
 	
-	public OldPosition (byte[] pieces, OldPosition prev) {
-		this.pieces = pieces;
-		this.prev = prev;
-	}
-	
+	/**
+	 * Constructor, automatically links list
+	 * 
+	 * @param prev  the previous OldPosition
+	 */
 	public OldPosition (OldPosition prev) {
 		this.prev = prev;
 		pieces = new byte[4];
 	}
 	
-	public OldPosition (byte[] pieces) {
-		this.pieces = pieces;
-	}
-	
+	/** Empty constructor */
 	public OldPosition () { }
 }

@@ -1,18 +1,46 @@
-package Chess;
+package Chess.Pieces;
 
+import Chess.*;
+
+/**
+ * This class implements PieceInterface. It is created once for each Board.
+ * It handles piece-specific move rules, and can generate possible moves.
+ *
+ * @author  Liam Marcassa
+ */
 public final class Pawn implements PieceInterface {
 	private int startRow, enPassant;
 	private boolean capturePassant;
 	private Board b;
 	
+	/**
+	 * Constructor
+	 * 
+	 * @param b  the Board that pawns are on
+	 */
 	public Pawn (Board b) { 
 		this.b = b;
 	}
 	
+	/**
+	 * Symbol to print to console. Is not used for identification by Board.
+	 * 
+	 * @return 'P'
+	 */
 	public char getChar() { 
 		return 'P';
 	}
 	
+	/**
+	 * Used to ensure a move makes mechanical sense. Pawns movement depends both on
+	 * where the pawn is and what the previous move was, however it always moves forward,
+	 * and can never be on the back rank (it should have been promoted). Does not
+	 * check for check.
+	 * 
+	 * @param current  the current piece
+	 * @param next  where the piece wants to be
+	 * @return true if move is valid, false if not
+	 */
 	public boolean validateMove (byte current, byte next) {
 		byte oldCol = (byte) ((56&current)>>3);
 		byte oldRow = (byte) (7&current);
@@ -60,6 +88,16 @@ public final class Pawn implements PieceInterface {
 		return false;
 	}
 	
+	/**
+	 * Returns every valid mechanical move possible from the current position.
+	 * Does not check check. Used by Board to calculate check and by Computer
+	 * to generate branches.
+	 * 
+	 * @param current  the current piece
+	 * @return an array of valid moves, starting from index zero. Not all values are
+	 *         moves: once a zero value has been reached, higher indices can be
+	 *         assumed to be zero also. The last index is guaranteed to be zero.
+	 */
 	public byte[] getMoves (byte current) {
 		byte[] candidates = new byte[5];
 		byte col = (byte)((current&56)>>3);

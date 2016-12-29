@@ -1,19 +1,44 @@
-package Chess;
+package Chess.Pieces;
 
-// ALL OF THESE CLASSES NEED TO BE REVIEWED, PROBABLY COULD BE FASTER
+import Chess.*;
 
+/**
+ * This class implements PieceInterface. It is created once for each Board.
+ * It handles piece-specific move rules, and can generate possible moves.
+ *
+ * @author  Liam Marcassa
+ */
 public class King implements PieceInterface {
 	
 	private Board b;
 		
+	/**
+	 * Constructor
+	 * 
+	 * @param b  the Board that kings are on
+	 */
 	public King (Board b) {
 		this.b = b;
 	}
 	
+	/**
+	 * Symbol to print to console. Is not used for identification by Board.
+	 * 
+	 * @return 'K'
+	 */
 	public char getChar() {
 		return 'K';
 	}
 	
+	/**
+	 * Used to ensure a move makes mechanical sense. Kings can only move one
+	 * square at a time (unless they are castling, which is mostly handled by Board).
+	 * The next square must be open or capturable. Does not check for check.
+	 * 
+	 * @param current  the current piece
+	 * @param next  where the piece wants to be
+	 * @return true if move is valid, false if not
+	 */
 	public boolean validateMove (byte current, byte next) {
 		byte oldCol = (byte) ((56&current)>>3);
 		byte oldRow = (byte) (7&current);
@@ -49,6 +74,17 @@ public class King implements PieceInterface {
 		return true;
 	}
 	
+	/**
+	 * Makes sure the king does not run into another piece during it's move.
+	 * 
+	 * @param current  the current piece
+	 * @param candidates  possible next pieces
+	 * @return a byte array of unkown length containing valid next positions. 
+	 * 		   Not every element is a valid position; other code is expecting
+	 * 		   this array to be filled starting from index zero and increasing.
+	 * 		   Once an element of value zero is encountered, there are no more
+	 * 		   valid moves; the rest of the array contains more zeros.
+	 */
 	private byte[] checkCollisions (byte current, byte[] candidates) {
 		byte count = 0;
 		byte i = 0;
@@ -71,6 +107,16 @@ public class King implements PieceInterface {
 		return candidates;
 	}
 	
+	/**
+	 * Returns every valid mechanical move possible from the current position.
+	 * Does not check check. Used by Board to calculate check and by Computer
+	 * to generate branches.
+	 * 
+	 * @param current  the current piece
+	 * @return an array of valid moves, starting from index zero. Not all values are
+	 *         moves: once a zero value has been reached, higher indices can be
+	 *         assumed to be zero also. The last index is guaranteed to be zero.
+	 */
 	public byte[] getMoves (byte current) {
 		byte[] candidates = new byte[11]; // one more than needed
 		byte col = (byte)((current&56)>>3);

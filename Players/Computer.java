@@ -1,20 +1,38 @@
-package Chess;
+package Chess.Players;
+
+import Chess.*;
 
 import java.util.Scanner;
 import java.util.Arrays;
 
-// just a copy of Human
+/**
+ * Computer contains the AI components of this project, and implements
+ * PlayerInterface.
+ *
+ * @author Liam Marcassa
+ */
 public class Computer implements PlayerInterface {
 	private Scanner in;
 	private Board b;
 	private Colour colour, tc;   // colour = our colour, tc = their colour
 	private char promoChar = 'N';
 
+	// These are large values, outside the range produced by the eval() function.
 	private static final int WIN = 15000;
 	private static final int STALE = -14000;
 
+	// Standing for myLow, myHigh, theirLow, theirHigh. These are indices
+	// relating to pieces[]. mLow and tLow will be {0,16}. These calculated
+	// once instead of constantly checking colours or writing two nearly
+	// identical classes.
 	private int mLow, mHi, tLow, tHi;
 	
+	/**
+	 * Constructor, initiallizes piece ranges
+	 * 
+	 * @param b  the board to play with
+	 * @param colour  our piece colour (white or black)
+	 */
 	public Computer (Board b, Colour colour) {
 		this.b = b;
 		this.colour = colour;
@@ -26,10 +44,16 @@ public class Computer implements PlayerInterface {
 		tHi = tLow+16;
 	}
 
+	/**
+	 * Helper method
+	 * 
+	 * @return our colour
+	 */
 	public Colour getColour() {
 		return colour;
 	}
 	
+	/** Calls getMove(), then ensures move does not put Human in check. */
 	public void makeMove() {
 		String input;
 		for ( ; ; ) {
@@ -42,17 +66,25 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
+	/**
+	 * A Node is created for each vertex in the Minimax tree.
+	 * There is no distinction made between a MIN node and a
+	 * MAX node, it is all left to the implementation to handle 
+	 * nodes correctly.
+	 */
 	public class Node {
 		Node parent;
 		int alpha,beta;
 		boolean blackInCheck, whiteInCheck;
 
+		/** Root node constructor */
 		public Node () {
 			alpha = Integer.MIN_VALUE;
 			beta = Integer.MAX_VALUE;
 			getChecks();
 		}
 
+		/** Child node constructor */
 		public Node (Node p) {
 			parent = p;
 			alpha = p.alpha;
@@ -60,32 +92,56 @@ public class Computer implements PlayerInterface {
 			getChecks();
 		}
 
+		/** Check is used to determine end game states */
 		public void getChecks () {
 			blackInCheck = b.calcCheck(Colour.BLACK);
 			whiteInCheck = b.calcCheck(Colour.WHITE);
 		}
 
+		/**
+		 * Update alpha using a child node
+		 * 
+		 * @param n  a child node
+		 */
 		public void updateAlpha (Node n) {
 			if (n.beta > alpha)
 				alpha = n.beta;
 		}
 
+		/**
+		 * Update alpha using a beta value
+		 * 
+		 * @param b  a beta value
+		 */
 		public void updateAlpha (int b) {
 			if (b > alpha)
 				alpha = b;
 		}
 
+		/**
+		 * Update beta using a child node
+		 * 
+		 * @param n  a child node
+		 */
 		public void updateBeta (Node n) {
 			if (n.alpha < beta)
 				beta = n.alpha;
 		}
 
+		/**
+		 * Update beta using an alpha value
+		 * 
+		 * @param a  an alpha value
+		 */
 		public void updateBeta (int a) {
 			if (a < beta)
 				beta = a;
 		}
 	}
 
+	/**
+	 * Helper class: organized info and reduces code duplication
+	 */
 	public class Piece {
 		byte current;
 		byte[] nexts;
@@ -96,9 +152,12 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
-	// does not recognize check?
-	// FIX CASTLING
-
+	/**
+	 * The root node
+	 * 
+	 * @return byte[] of length two, corresponding to the current and desired location of 
+	 * 		   a piece. Format is; [7-6]: unused, [5-3]: column, [2-0] row.
+	 */
 	private byte[] root () {
 		Piece[] pieces = new Piece[16];
 		Node node = new Node();
@@ -139,8 +198,15 @@ public class Computer implements PlayerInterface {
 		return out;
 	}
 
-	private int checkMyMoves (Node n, Colour c) {
-		if (c == Colour.BLACK) {
+	/**
+	 * Catch end game states (win, loss, stalemate)
+	 * 
+	 * @param n  the current node 
+	 * @return zero if non-end game state, WIN if win, 0-WIN if loss,
+	 * 		   and STALE if stalemate
+	 */
+	private int checkMyMoves (Node n) {
+		if (colour == Colour.BLACK) {
 			if (n.blackInCheck && n.parent.blackInCheck) {
 				// if all moves are here, is checkmate
 				return (0-WIN);
@@ -166,13 +232,23 @@ public class Computer implements PlayerInterface {
 		return 0;
 	}
 
+	/**
+	 * Attempts to move a piece from current to next, then dispatches
+	 * and evaluates all child moves. The actual piece moved is unimportant
+	 * to the method. Corresponds to depth one of the search tree.
+	 * 
+	 * @param parent  the parent node (root).
+	 * @param current  the current position of a piece.
+	 * @param next  the next desired position of a piece.
+	 * @return the utility of the move (from current to next).
+	 */
 	private int depthOne (Node parent, byte current, byte next) {
 		if (b.boardMove(this,colour,current,next)) {
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
-			int badMoves = checkMyMoves(node,colour);
+			int badMoves = checkMyMoves(node);
 			if (badMoves != 0) {
 				b.undoMove();
 				return badMoves;
@@ -200,8 +276,16 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
-	private int checkTheirMoves (Node n, Colour c) {
-		if (c == Colour.BLACK) {
+	/**
+	 * This method filters the opponents moves for end game states.
+	 * It is the mirror of {@link #checkMyMoves(Node) checkMyMoves}.
+	 * 
+	 * @param n  the current node
+	 * @return zero if non-end game state, WIN if opponent wins, 0-WIN if opponent loses,
+	 * 		   and 0-STALE if stalemate.
+	 */
+	private int checkTheirMoves (Node n) {
+		if (tc == Colour.BLACK) {
 			if (n.blackInCheck && n.parent.blackInCheck) {
 				// if all moves are here, is checkmate
 				return WIN;
@@ -227,13 +311,23 @@ public class Computer implements PlayerInterface {
 		return 0;
 	}
 
+	/**
+	 * Attempts to move a piece from current to next, then dispatches
+	 * and evaluates all child moves. The actual piece moved is unimportant
+	 * to the method. Corresponds to depth two of the searh tree.
+	 * 
+	 * @param parent  the parent node (root).
+	 * @param current  the current position of a piece.
+	 * @param next  the next desired position of a piece.
+	 * @return the utility of the move (from current to next).
+	 */
 	private int depthTwo (Node parent, byte current, byte next) {
 		if (b.boardMove(this,tc,current,next)) {
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
-			int badMoves = checkTheirMoves(node,tc);
+			int badMoves = checkTheirMoves(node);
 			if (badMoves != 0) {
 				b.undoMove();
 				return badMoves;
@@ -262,13 +356,23 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
+	/**
+	 * Attempts to move a piece from current to next, then dispatches
+	 * and evaluates all child moves. The actual piece moved is unimportant
+	 * to the method. Corresponds to depth three of the searh tree.
+	 * 
+	 * @param parent  the parent node (root).
+	 * @param current  the current position of a piece.
+	 * @param next  the next desired position of a piece.
+	 * @return the utility of the move (from current to next).
+	 */
 	private int depthThree (Node parent, byte current, byte next) {
 		if (b.boardMove(this,colour,current,next)) {
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
-			int badMoves = checkMyMoves(node,colour);
+			int badMoves = checkMyMoves(node);
 			if (badMoves != 0) {
 				b.undoMove();
 				return badMoves;
@@ -296,11 +400,21 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
+	/**
+	 * Attempts to move a piece from current to next, then evaluates the
+	 * utility of the resulting board configuration. Corresponds to depth
+	 * four of the search tree.
+	 * 
+	 * @param parent  the parent node (root).
+	 * @param current  the current position of a piece.
+	 * @param next  the next desired position of a piece.
+	 * @return the utility of the move (from current to next).
+	 */
 	private int depthFour (Node parent, byte current, byte next) {
 		if (b.boardMove(this,tc,current,next)) {
 			Node node = new Node(parent);
 
-			int badMoves = checkTheirMoves(node,tc);
+			int badMoves = checkTheirMoves(node);
 			if (badMoves != 0) {
 				b.undoMove();
 				return badMoves;
@@ -316,16 +430,10 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
-	// 128 64 32 16 8 4 2 1
-	//   0  1  1  0 0 0 0 1
-	//   0  1  0  1 1 0 1 0
-
-	// must return a value +/- 10,000
-	//
-	// -15000 = we lost
-	// -14000 = stale mate 
-	// 15000 = we won
-
+	/**
+	 * The evaluation function for a board state. Emphasis on speed.
+	 * @return int  the expected utility
+	 */
 	private int eval () {
 		int sum = 0;
 		for (int i = mLow; i < mHi; i++)
@@ -337,10 +445,14 @@ public class Computer implements PlayerInterface {
 		return sum;
 	}
 
+	/**
+	 * @param i  the piece index (@see Chess.Board)
+	 * @return standard relative weight
+	 */
 	private int pieceValue (int i) {
 		switch (b.pieceNames[i]) {
 			case 'K':
-				return Integer.MAX_VALUE-200;
+				return 200;
 			case 'Q':
 				return 9;
 			case 'R':
@@ -355,6 +467,12 @@ public class Computer implements PlayerInterface {
 		return 0;
 	}
 	
+	/**
+	 * Standard method required by inheritance. Similar to Human counterpart.
+	 * 
+	 * @return byte[] of length two, corresponding to the current and desired location of 
+	 * 		   a piece. Format is; [7-6]: unused, [5-3]: column, [2-0] row.
+	 */
 	private byte[] getMove() {
 		char[] parsed;
 		byte[] out = new byte[2];
@@ -395,6 +513,12 @@ public class Computer implements PlayerInterface {
 		return out;
 	}
 	
+	/**
+	 * "Catch" pawn promotion, promote to queen or knight (these will cover all movement options possible).
+	 * Both options will be explored (@see Chess.Pawn#getMoves(byte)).
+	 * 
+	 * @return a character code for the promoted pawn (either 'N' or 'Q').
+	 */
 	public char choosePawnPromo() {
 		promoChar = (promoChar == 'N') ? 'Q' : 'N';
 		return promoChar;

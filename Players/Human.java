@@ -1,23 +1,43 @@
-package Chess;
+package Chess.Players;
+
+import Chess.*;
 
 import java.util.Scanner;
 
+/**
+ * This class implements PlayerInterface. It prompts the user for a move and ensures that
+ * the move is valid. 
+ *
+ * @author  Liam Marcassa
+ */
 public class Human implements PlayerInterface {
 	
 	private Scanner in;
 	private Board b;
 	private Colour colour;
 	
+	/**
+	 * Constructor
+	 * 
+	 * @param b  the Board to play on
+	 * @param colour  Human's piece colour
+	 */
 	public Human (Board b, Colour colour) {
 		this.b = b;
 		this.colour = colour;
 		in = new Scanner(System.in);
 	}
 
+	/**
+	 * Helper function. 
+	 * 
+	 * @return the player's piece colour
+	 */
 	public Colour getColour() {
 		return colour;
 	}
 	
+	/** Calls getMove(), then ensures move does not put Human in check. */
 	public void makeMove() {
 		String input;
 		for ( ; ; ) {
@@ -30,6 +50,11 @@ public class Human implements PlayerInterface {
 		}
 	}
 	
+	/**
+	 * Ask the user for a move, sanitize input. Exit if input is 'x'.
+	 * 
+	 * @return byte[] of size two, representing a current piece and it's desired replacement
+	 */
 	private byte[] getMove() {
 		char[] parsed;
 		byte[] out = new byte[2];
@@ -60,6 +85,11 @@ public class Human implements PlayerInterface {
 		return out;
 	}
 	
+	/**
+	 * Prompt user for pawn promotion, sanitize input. Exit if input is 'x'.
+	 * 
+	 * @return the char standing for a piece code (Q,R,B,N).
+	 */
 	public char choosePawnPromo() {
 		String promo;
 		for ( ; ; ) {

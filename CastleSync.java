@@ -1,7 +1,12 @@
 package Chess;
 
-// KINGSIDE AND QUEENSIDE ARE BACKWARDS
-
+/**
+ * This class keeps track of King and Rook movements. It does not ultimately decide
+ * whether a king can castle, but provides a quick, early decision if pieces have
+ * moved.
+ *
+ * @author  Liam Marcassa
+ */
 public class CastleSync {
 
 	// bits:
@@ -12,28 +17,18 @@ public class CastleSync {
 	// 4 = white kingside rook has moved
 	// 5 = white queenside rook has moved
 	private static byte canCastle = 0;
+
 	// timesMoved is not actually the number of moves a piece has made,
 	// but the number of times it has moved away from its default location
 	private static int[] timesMoved = new int[6]; 
 	
-	/*
-	King:
-	can castle if Global.canCastle(colour,newCol);
-	
-	Board:
-	if king was at 3,0 or 3,7, moves, and !Global.kingHasMoved(colour), then:
-		set flag in OldPosition
-		call Global.kingMoved(colour);
-	if rook was at 0,0 or 7,0 or 0,7 or 7,7, moves, and !Global.rookHasMoved(colour,oldCol), then:
-		set flag in OldPosition
-		call Global.rookMoved(colour,oldCol);
-	Reseting (in Board):
-	if king and flag, then:
-		call Global.resetKing(colour);
-	if rook and flag, then:
-		call Global.resetRook(colour,oldCol);
-	*/
-	
+	/**
+	 * Increments an element of timesMoved and ensures canCastle bit is set.
+	 * Called every time a rook or king moves away from their default starting
+	 * square.
+	 * 
+	 * @param oldPos  is one of six default starting pieces
+	 */
 	public static void set (byte oldPos) {
 		switch (oldPos) {
 			case -25:
@@ -69,6 +64,12 @@ public class CastleSync {
 		}
 	}
 	
+	/**
+	 * Called by Board#undoMove(); decrements timesMoved and resets
+	 * bit if timesMoves[x] == 0.
+	 * 
+	 * @param oldPos  one of six default starting pieces
+	 */
 	public static void reset (byte oldPos) {
 		switch (oldPos) {
 			case -25:
@@ -110,6 +111,14 @@ public class CastleSync {
 		}
 	}
 	
+	/**
+	 * Allows the program to quickly check if a king cannot
+	 * castle in a certain direction (kingside or queenside).
+	 * 
+	 * @param
+	 * @return false if either the king or rook has moved, true if not. True
+	 * 		   does not imply the castling is valid, check still has to be checked.
+	 */
 	public static boolean canCastle (byte newKing) {
 		switch (newKing) {
 			case -9:

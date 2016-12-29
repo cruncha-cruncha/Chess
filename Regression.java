@@ -1,5 +1,7 @@
 package Chess;
 
+import Chess.Players.*;
+
 public class Regression {
 
 	private Board b;

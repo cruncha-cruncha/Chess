@@ -1,5 +1,8 @@
 package Chess;
 
+import Chess.Pieces.*;
+import Chess.Players.*;
+
 import java.util.LinkedList;
 import java.util.Scanner;
 import javax.swing.*;
@@ -8,24 +11,54 @@ import javax.swing.table.*;
 import java.awt.event.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ *
+ * Throughout the code, effort has been taken to seperate "check" from everything else,
+ * since it is fairly intensive.
+ *
+ * 
+ * 
+ * @author  Liam Marcassa
+ */
 public class Board {
 	
-	private static char[] columns;
+	private static char[] columns; // [A,B,C,D,E,F,G,H]
 	private static PieceInterface king, queen, rook, bishop, knight, pawn;
 	private boolean blackInCheck, whiteInCheck;
+
+	// Used to indicate end game state: either a player won, or stalemate. If the game is not
+	// over, is kept blank.
 	public String gameOver;
-	public byte[][] board;
+
+	// A linked list detailing the exact board changes between one state and the next.
+	public OldPosition moveHistory;
+
+	// pieces and pieceNames together provide a complete board specification. Each element of 
+	// pieces contains the following bits; [7]: colour, 0=white, 1=black; [6] in play, 1=in play,
+	// 0=captured; [5-3]: column of piece (x coordinate); [2-0]: row of piece (y coordiante).
+	// Location A1 is at (0,0). The black king is always at pieces[0], and the white king is 
+	// always at pieces[16] (see #fillPieces() for others). Since pawns can be promoted into
+	// other pieces, pieceNames is required to indicate which type of piece each pieces[x] is. 
 	public byte[] pieces;
 	public byte[] pieceNames;
-	public OldPosition moveHistory;
-	private boolean isUnix;
+
+	// board is a direct representation of a chess board: a square, 8x8 matrix. If no piece is on
+	// square (x,y), board[x][y] == -128, else: board[ (56 & pieces[i]) >> 3 ][ (7 & pieces[i]) ] == i
+	public byte[][] board;
 	
-	// only works on unix systems
+	// ASCII output is terrible for chess, but I have no experience with Swing. In an attempt to 
+	// make the output more clear, colour can be used in *nix systems to differentiate between
+	// players. This has only been tested in OS X. The colour codes were taken from:
 	// http://cesarloachamin.github.io/2015/03/31/System-out-print-colors-and-unicode-characters/
+	private boolean isUnix;
 	public static final String CYAN = "\u001B[36m";
 	public static final String YELLOW = "\u001B[33m";
 	public static final String RESET = "\u001B[0m";
 	
+	/** 
+	 * Constructor. Initializes gameOver string, detects *nix systems, creates and populates board
+	 * (and pieces and pieceNames and everything else), and finally prints the board th console.
+	 */
 	public Board () {
 		gameOver = "";
 		isUnix = detectUnix();
@@ -33,8 +66,13 @@ public class Board {
 		printBoard();
 	}
 	
+	/**
+	 * Detect *nix systems in an attempt to render output slightly better (tested on an OS X bash shell).
+	 * Based on a technique from https://www.mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+	 * 
+	 * @return true if *nix system, false otherwise
+	 */
 	private boolean detectUnix () {
-		// https://www.mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
 		String os = System.getProperty("os.name").toLowerCase();
 		if (os.indexOf("mac") >= 0 || os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0 || os.indexOf("aix") >= 0) {
 			return true;
@@ -43,6 +81,12 @@ public class Board {
 		}
 	}
 	
+	/**
+	 * Use either default initial board oconfiguration, or prompt user to specify their own.
+	 * Ensure board variables are valid afterwards.
+	 * 
+	 * @return true, program exits on a bad board.
+	 */
 	private boolean setupBoard () {
 		Scanner in = new Scanner(System.in);
 		System.out.print("use default configuration? (y/n): ");
@@ -62,6 +106,10 @@ public class Board {
 		return true;
 	}
 	
+	/**
+	 * Get access to each piece's validateMove(byte,byte) function, and 
+	 * initialize the linked list which is used to undo moves 
+	 */
 	private void initVars () {
 		pawn = new Pawn(this);
 		knight = new Knight(this);
@@ -73,6 +121,11 @@ public class Board {
 		moveHistory = new OldPosition();
 	}
 	
+	/**
+	 * Create and populate the board (must be called after #fillPieces()).
+	 * Calculate check states, and whether or not castling can occur.
+	 * Inform user how to interpret the board.
+	 */
 	private void fillBoard () {
 		// column labels (A-H)
 		columns = new char[8];
@@ -118,6 +171,10 @@ public class Board {
 		}
 	}
 	
+
+	/**
+	 * Create and populate the pieces and pieceNames array for a standard board configuration.
+	 */
 	private void fillPieces () {
 		// black then white
 		byte[] filler = {-25,-33,-57,-1,-41,-17,-49,-9,-58,-50,-42,-34,-26,-18,-10,-2,
@@ -134,6 +191,14 @@ public class Board {
 		}
 	}
 	
+	/**
+	 * Parse the user-supplied board, and use that data to create and populate
+	 * the pieces and pieceNames arrays. User supplied board has already been 
+	 * sanitized.
+	 * 
+	 * @param config  the user-supplied board, containing uppercase and
+	 * 				  lowercase chars corresponding to piece codes.
+	 */
 	private void fillPieces (char[][] config) {
 		pieces = new byte[32];
 		pieceNames = new byte[32];
@@ -164,7 +229,7 @@ public class Board {
 					}
 
 					pieces[index] = (index < 16) ? (byte) (1<<7) : (byte) (0);
-					pieces[index] = (byte) (pieces[index] | (1<<6)); // IS THIS WORKING?? CRASHES WHEN 64 USED INSTEAD
+					pieces[index] = (byte) (pieces[index] | (1<<6));
 					pieces[index] = (byte) (pieces[index] | (i<<3));
 					pieces[index] = (byte) (pieces[index] | (j));
 					pieceNames[index] = (byte) pieceName;
@@ -173,8 +238,15 @@ public class Board {
 		}
 	}
 	
+	/**
+	 * If user elects to specify their own board configuration, this method handles it. First, it creates
+	 * a GUI interface for convenience. When the user is done, their configuration checked for correctness.
+	 * 
+	 * @return a valid board configuration, specified using uppercase and lowercase chars representing
+	 * 		   piece codes.
+	 */
 	private char[][] askBoard () {
-		System.out.println("<loading swing>");
+		System.out.println("<loading swing>"); // because it takes forever to load because I'm bad at Swing
 		char[][] out = new char[8][8];
 		AtomicBoolean paused = new AtomicBoolean(true); // is this skookum?
 		
@@ -280,6 +352,9 @@ public class Board {
 		return out;
 	}
 	
+	/**
+	 * Print a textual representation of the board to console.
+	 */
 	public void printBoard () {
 		System.out.println();
 		System.out.print(" ");
@@ -322,6 +397,13 @@ public class Board {
 		System.out.println("\n");
 	}
 
+	/**
+	 * Return the appropriate class by looking up the char code
+	 * in pieceNames.
+	 * 
+	 * @param index  for pieces array
+	 * @return the corresponding piece class
+	 */
 	public PieceInterface getPiece (int index) {
 		switch(pieceNames[index]) {
 			case 75:
@@ -340,24 +422,12 @@ public class Board {
 		return null;
 	}
 	
-	public PieceInterface getPiece (byte index) {
-		switch (pieceNames[index]) {
-			case 75:
-				return king;
-			case 81:
-				return queen;
-			case 82:
-				return rook;
-			case 66:
-				return bishop;
-			case 78:
-				return knight;
-			case 80:
-				return pawn;
-		}
-		return null;
-	}
-	
+	/**
+	 * Undo the previous move based on moveHistory. Handles all relevant checking and
+	 * castling states.
+	 * 
+	 * @return true unless moveHistory has no more links
+	 */
 	public boolean undoMove () {
 		if (moveHistory.prev == null)
 			return false;
@@ -448,6 +518,17 @@ public class Board {
 		return true;
 	}
 	
+	/**
+	 * Before any values are actually changed, ensure a move makes mechanical sense.
+	 * Checks that the piece is in play, it is of the correct colour, and can move 
+	 * to next position without colliding with another piece. Does not check check.
+	 * Only used when Human is making moves.
+	 * 
+	 * @param c  the colour of the piece being moved
+	 * @param current  a piece (from the pieces array)
+	 * @param next	the complete status of its next location
+	 * @return true if the move is valid, otherwise false
+	 */
 	public boolean validateMove (Colour c, byte current, byte next) {
 		if ((64&current) != 64 || current == next)
 			return false;
@@ -462,6 +543,16 @@ public class Board {
 		return pi.validateMove(current,next);
 	}
 	
+	/**
+	 * Make a move. Recognizes captures, pawn promotions, and castling. Updates pieces,
+	 * pieceNames, board, and moveHistory. Does not check check.
+	 * 
+	 * @param player  the player making the move (required in case a pawn gets promoted).
+	 * @param c  the player's colour (required for castling)
+	 * @param current  an item from the pieces array
+	 * @param next  a new entry for the pieces array
+	 * @return true unless castling failed
+	 */
 	public boolean boardMove (PlayerInterface player, Colour c, byte current, byte next) {
 		byte oldCol = (byte) ((56&current)>>3);
 		byte oldRow = (byte) (7&current);
@@ -474,6 +565,7 @@ public class Board {
 		if (pieceNames[board[oldCol][oldRow]] == 'K') {
 			if (Math.abs(newCol-oldCol) == 2) {
 				if (inCheck(c)) {
+					// CHECK INTERMEDIATE SPACES!!
 					moveHistory = moveHistory.prev;
 					return false;
 				} else {
@@ -564,6 +656,15 @@ public class Board {
 		return true;
 	}
 	
+	/**
+	 * Used by Human to ensure the move does not put them in check, reverts move if
+	 * it does. 
+	 * 
+	 * @param c  player's colour
+	 * @param current  the current (now old) position
+	 * @param next  the new (current) position
+	 * @return true if move is valid, false if move was reverted
+	 */
 	public boolean checkCheck (Colour c, byte current, byte next) {
 		// ensure move does not put player in or keep in check
 		if (inCheck(c)) {
@@ -587,12 +688,21 @@ public class Board {
 		return true;
 	}
 	
-	// return if player is currently in check
+	/**
+	 * Helper function
+	 * 
+	 * @param c  the player's colour
+	 * @return true if player is in check, false if not in check
+	 */
 	private boolean inCheck (Colour c) {
 		return (c == Colour.BLACK) ? blackInCheck : whiteInCheck;
 	}
 	
-	// flip flop check status
+	/**
+	 * Helper function; flip-flops check flag
+	 * 
+	 * @param c  player's colour
+	 */
 	private void reCheck (Colour c) {
 		if (c == Colour.BLACK) {
 			blackInCheck = !blackInCheck;
@@ -601,7 +711,13 @@ public class Board {
 		}
 	}
 	
-	// calculate if player is in check
+	/**
+	 * Calculates either blackInCheck or whiteInCheck. Must be called for each colour
+	 * at least once a turn.
+	 * 
+	 * @param c  the player's colour.
+	 * @return true if player is in check, false if they are not.
+	 */
 	public boolean calcCheck (Colour c) {
 		Shell shell = new Shell();
 		boolean valid = false;
@@ -644,6 +760,9 @@ public class Board {
 		return valid;
 	}
 	
+	/**
+	 * Helper class; used to calculate check.
+	 */
 	private class Shell implements PlayerInterface {
 		char promoChar = 'N';
 		public Colour getColour() { return Colour.BLACK; }

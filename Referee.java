@@ -1,16 +1,33 @@
 package Chess;
 
+import Chess.Players.*;
+
 import java.util.Scanner;
 import javax.swing.*;
 import java.awt.*;
 
+/**
+ * This class is the main entry to the program. It initilializes all required variables,
+ * governs turn-based play, and handles game endings.
+ *
+ * @author  Liam Marcassa
+ */
 public class Referee {
 	
 	private Colour turn;
 	private Scanner in;
 	private Board board;
 	private PlayerInterface wPlayer, bPlayer;
+
+	// TODO:
+	// - fix castling rules (inbetween squares cannot be in check!)
+	// - output chess moves to file
+	// - play with evaluation functions
+	// - add more depths
 	
+	/**
+	 * Constructor, main entry point for entire program.
+	 */
 	public Referee () {
 		in = new Scanner(System.in);
 		board = new Board();
@@ -18,6 +35,12 @@ public class Referee {
 		go();
 	}
 
+	/**
+	 * Prompts the user for their choice of colour and turn order,
+	 * initiallizes appropriate variables.
+	 * 
+	 * @return for convenience
+	 */
 	private boolean getSides () {
 		System.out.print("white plays first? (y/n): ");
 		String choice = in.next().toLowerCase();
@@ -48,6 +71,11 @@ public class Referee {
 		return true;
 	}
 	
+	/**
+	 * Regulates turns, checks for end condition.
+	 * 
+	 * @return true if no error
+	 */
 	private boolean go () {
 		String gameOver;
 		while (true) {
@@ -67,9 +95,14 @@ public class Referee {
 			if (in.next().equals("x"))
 				break;
 		}
-		return false;
+		return true;
 	}
 	
+	/**
+	 * Entry point of program
+	 * 
+	 * @param args  unused
+	 */
 	public static void main (String[] args) {
 		Referee ref = new Referee();
 	}

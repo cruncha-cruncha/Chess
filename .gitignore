@@ -48,3 +48,6 @@ Temporary Items
 
 # java
 *.class
+
+# oops
+*.pdf
