@@ -49,9 +49,13 @@ public class Referee {
 	}
 	
 	private boolean go () {
+		String gameOver;
 		while (true) {
-			//if (board.gameOver())
-			//	break;
+
+			if (!board.gameOver.equals("")) {
+				System.out.println(board.gameOver);
+				break;
+			}
 			
 			if (turn == Colour.WHITE) {
 				wPlayer.makeMove();

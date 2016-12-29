@@ -7,10 +7,11 @@ import java.util.Arrays;
 public class Computer implements PlayerInterface {
 	private Scanner in;
 	private Board b;
-	private Colour colour, tc;
+	private Colour colour, tc;   // colour = our colour, tc = their colour
 	private char promoChar = 'N';
 
-	private final int MAX_DEPTH = 4;
+	private static final int WIN = 15000;
+	private static final int STALE = -14000;
 
 	private int mLow, mHi, tLow, tHi;
 	
@@ -44,17 +45,24 @@ public class Computer implements PlayerInterface {
 	public class Node {
 		Node parent;
 		int alpha,beta;
-		boolean inCheck;
+		boolean blackInCheck, whiteInCheck;
 
 		public Node () {
 			alpha = Integer.MIN_VALUE;
 			beta = Integer.MAX_VALUE;
+			getChecks();
 		}
 
 		public Node (Node p) {
 			parent = p;
 			alpha = p.alpha;
 			beta = p.beta;
+			getChecks();
+		}
+
+		public void getChecks () {
+			blackInCheck = b.calcCheck(Colour.BLACK);
+			whiteInCheck = b.calcCheck(Colour.WHITE);
 		}
 
 		public void updateAlpha (Node n) {
@@ -82,10 +90,14 @@ public class Computer implements PlayerInterface {
 		byte current;
 		byte[] nexts;
 		int[] evals;
+		public Piece (int i) {
+			current = b.pieces[i];
+			nexts = b.getPiece(i).getMoves(b.pieces[i]);
+		}
 	}
 
-	// does not recognize check
-	// changes king to a pawn?
+	// does not recognize check?
+	// FIX CASTLING
 
 	private byte[] root () {
 		Piece[] pieces = new Piece[16];
@@ -93,9 +105,7 @@ public class Computer implements PlayerInterface {
 
 		for (int i = 0; i < 16; i++) {
 			if ((64&b.pieces[i+mLow]) == 64) {
-				pieces[i] = new Piece();
-				pieces[i].current = b.pieces[i+mLow];
-				pieces[i].nexts = b.getPiece(i+mLow).getMoves(b.pieces[i+mLow]);
+				pieces[i] = new Piece(i+mLow);
 				pieces[i].evals = new int[pieces[i].nexts.length];
 				int a = 0;
 				while (pieces[i].nexts[a] != 0) {
@@ -111,7 +121,7 @@ public class Computer implements PlayerInterface {
 		outer:
 		for (int i = 0; i < 16; i++) {
 			int a = 0;
-			while (pieces[i].nexts[a] != 0) {
+			while (pieces[i] != null && pieces[i].nexts[a] != 0) {
 				if (pieces[i].evals[a] == node.alpha) {
 					out[0] = pieces[i].current;
 					out[1] = pieces[i].nexts[a];
@@ -121,27 +131,58 @@ public class Computer implements PlayerInterface {
 			}
 		}
 
+		// IF BEST MOVE = LOSE, WE HAVE LOST
+		// IF BEST MOVE = STALE, WE HAVE STALEMATED
+		// IF BEST MOVE = WIN, WE HAVE WON
+		// SET b.gameOver (a String) to corresponding text
+
 		return out;
+	}
+
+	private int checkMyMoves (Node n, Colour c) {
+		if (c == Colour.BLACK) {
+			if (n.blackInCheck && n.parent.blackInCheck) {
+				// if all moves are here, is checkmate
+				return (0-WIN);
+			} else if (n.whiteInCheck && n.parent.whiteInCheck) {
+				// we win!!
+				return WIN;
+			} else if (n.parent.blackInCheck) {
+				// if all moves are here, is stale
+				return STALE;
+			}
+		} else {
+			if (n.whiteInCheck && n.parent.whiteInCheck) {
+				// if all moves are here, is checkmate
+				return (0-WIN);
+			} else if (n.blackInCheck && n.parent.blackInCheck) {
+				// we win!!
+				return WIN;
+			} else if (n.parent.whiteInCheck) {
+				// if all moves are here, is stale
+				return STALE;
+			}
+		}
+		return 0;
 	}
 
 	private int depthOne (Node parent, byte current, byte next) {
 		if (b.boardMove(this,colour,current,next)) {
-			if (kingCapture()) {
-				b.undoMove();
-				return Integer.MAX_VALUE;
-			}
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
+
+			int badMoves = checkMyMoves(node,colour);
+			if (badMoves != 0) {
+				b.undoMove();
+				return badMoves;
+			}
 			
 			outer:
 			for (int i = 0; i < 16; i++) {
 				if ((64&b.pieces[i+tLow]) == 64) {
-					pieces[i] = new Piece();
-					pieces[i].current = b.pieces[i+tLow];
-					pieces[i].nexts = b.getPiece(i+tLow).getMoves(b.pieces[i+tLow]);
+					pieces[i] = new Piece(i+tLow);
 					int a = 0;
-					int tmp;
 					while (pieces[i].nexts[a] != 0) {
 						node.updateBeta(depthTwo(node, pieces[i].current, pieces[i].nexts[a]));
 						if (node.beta <= node.alpha)
@@ -159,24 +200,51 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
+	private int checkTheirMoves (Node n, Colour c) {
+		if (c == Colour.BLACK) {
+			if (n.blackInCheck && n.parent.blackInCheck) {
+				// if all moves are here, is checkmate
+				return WIN;
+			} else if (n.whiteInCheck && n.parent.whiteInCheck) {
+				// we win!!
+				return (0-WIN);
+			} else if (n.parent.blackInCheck) {
+				// if all moves are here, is stale
+				return (0-STALE);
+			}
+		} else {
+			if (n.whiteInCheck && n.parent.whiteInCheck) {
+				// if all moves are here, is checkmate
+				return WIN;
+			} else if (n.blackInCheck && n.parent.blackInCheck) {
+				// we win!!
+				return (0-WIN);
+			} else if (n.parent.whiteInCheck) {
+				// if all moves are here, is stale
+				return (0-STALE);
+			}
+		}
+		return 0;
+	}
+
 	private int depthTwo (Node parent, byte current, byte next) {
 		if (b.boardMove(this,tc,current,next)) {
-			if (kingCapture()) {
-				b.undoMove();
-				return Integer.MIN_VALUE;
-			}
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
+			int badMoves = checkTheirMoves(node,tc);
+			if (badMoves != 0) {
+				b.undoMove();
+				return badMoves;
+			}
+
 			outer:
 			for (int i = 0; i < 16; i++) {
 				if ((64&b.pieces[i+mLow]) == 64) {
-					pieces[i] = new Piece();
-					pieces[i].current = b.pieces[i+mLow];
-					pieces[i].nexts = b.getPiece(i+mLow).getMoves(b.pieces[i+mLow]);
+					pieces[i] = new Piece(i+mLow);
+
 					int a = 0;
-					int tmp;
 					while (pieces[i].nexts[a] != 0) {
 						node.updateAlpha(depthThree(node, pieces[i].current, pieces[i].nexts[a]));
 						if (node.beta <= node.alpha)
@@ -196,23 +264,21 @@ public class Computer implements PlayerInterface {
 
 	private int depthThree (Node parent, byte current, byte next) {
 		if (b.boardMove(this,colour,current,next)) {
-			if (kingCapture()) {
-				b.undoMove();
-				// figure out if stalemate ????
-				return Integer.MAX_VALUE;
-			}
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
+			int badMoves = checkMyMoves(node,colour);
+			if (badMoves != 0) {
+				b.undoMove();
+				return badMoves;
+			}
+
 			outer:
 			for (int i = 0; i < 16; i++) {
 				if ((64&b.pieces[i+tLow]) == 64) {
-					pieces[i] = new Piece();
-					pieces[i].current = b.pieces[i+tLow];
-					pieces[i].nexts = b.getPiece(i+tLow).getMoves(b.pieces[i+tLow]);
+					pieces[i] = new Piece(i+tLow);
 					int a = 0;
-					int tmp;
 					while (pieces[i].nexts[a] != 0) {
 						node.updateBeta(depthFour(node, pieces[i].current, pieces[i].nexts[a]));
 						if (node.beta <= node.alpha)
@@ -231,38 +297,34 @@ public class Computer implements PlayerInterface {
 	}
 
 	private int depthFour (Node parent, byte current, byte next) {
-		try {
-			if (b.boardMove(this,tc,current,next)) {
-				if (kingCapture()) {
-					b.undoMove();
-					// figure out what it means???
-					return Integer.MIN_VALUE;
-				}
+		if (b.boardMove(this,tc,current,next)) {
+			Node node = new Node(parent);
 
-				int out = eval();
-
+			int badMoves = checkTheirMoves(node,tc);
+			if (badMoves != 0) {
 				b.undoMove();
-
-				return out;
-			} else {
-				return Integer.MAX_VALUE; // ignore, tried to castle
+				return badMoves;
 			}
-		} catch (java.lang.ArrayIndexOutOfBoundsException e) {
-			System.out.println("ERROR");
-			System.out.println(b.pieces[17]);
-			b.printBoard();
-			/*
-			System.out.println(b.undoMove());
-			b.printBoard();
-			System.out.println(b.undoMove());
-			b.printBoard();
-			System.out.println(b.undoMove());
-			b.printBoard();
-			System.out.println(current);*/
-			System.exit(0);
+
+			int out = eval();
+
+			b.undoMove();
+
+			return out;
+		} else {
+			return Integer.MAX_VALUE; // ignore, tried to castle
 		}
-		return 0;
 	}
+
+	// 128 64 32 16 8 4 2 1
+	//   0  1  1  0 0 0 0 1
+	//   0  1  0  1 1 0 1 0
+
+	// must return a value +/- 10,000
+	//
+	// -15000 = we lost
+	// -14000 = stale mate 
+	// 15000 = we won
 
 	private int eval () {
 		int sum = 0;
@@ -273,12 +335,6 @@ public class Computer implements PlayerInterface {
 			if ((64&b.pieces[i]) == 64)
 				sum -= pieceValue(i);
 		return sum;
-	}
-
-	private boolean kingCapture () {
-		if ((64&b.pieces[0]) == 0 || (64&b.pieces[16]) == 0)
-			return true;
-		return false;
 	}
 
 	private int pieceValue (int i) {

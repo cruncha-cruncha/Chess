@@ -13,6 +13,7 @@ public class Board {
 	private static char[] columns;
 	private static PieceInterface king, queen, rook, bishop, knight, pawn;
 	private boolean blackInCheck, whiteInCheck;
+	public String gameOver;
 	public byte[][] board;
 	public byte[] pieces;
 	public byte[] pieceNames;
@@ -26,6 +27,7 @@ public class Board {
 	public static final String RESET = "\u001B[0m";
 	
 	public Board () {
+		gameOver = "";
 		isUnix = detectUnix();
 		setupBoard(); 
 		printBoard();
@@ -472,6 +474,7 @@ public class Board {
 		if (pieceNames[board[oldCol][oldRow]] == 'K') {
 			if (Math.abs(newCol-oldCol) == 2) {
 				if (inCheck(c)) {
+					moveHistory = moveHistory.prev;
 					return false;
 				} else {
 					if (newCol == 6) {
@@ -584,11 +587,6 @@ public class Board {
 		return true;
 	}
 	
-	public boolean gameOver () {
-		// something something Computer
-		return true;
-	}
-	
 	// return if player is currently in check
 	private boolean inCheck (Colour c) {
 		return (c == Colour.BLACK) ? blackInCheck : whiteInCheck;
@@ -604,7 +602,7 @@ public class Board {
 	}
 	
 	// calculate if player is in check
-	private boolean calcCheck (Colour c) {
+	public boolean calcCheck (Colour c) {
 		Shell shell = new Shell();
 		boolean valid = false;
 		Colour o = (c == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
