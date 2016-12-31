@@ -72,7 +72,7 @@ public class Knight implements PieceInterface {
 	 * 		   Not every element is a valid position; other code is expecting
 	 * 		   this array to be filled starting from index zero and increasing.
 	 * 		   Once an element of value zero is encountered, there are no more
-	 * 		   valid moves; the rest of the array contains more zeros.
+	 * 		   valid moves; the rest of the array can be skipped.
 	 */
 	private byte[] checkCollisions (byte current, byte[] candidates) {
 		byte count = 0;

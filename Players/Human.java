@@ -42,7 +42,10 @@ public class Human implements PlayerInterface {
 		String input;
 		for ( ; ; ) {
 			byte[] aMove = getMove();
-			if (b.boardMove(this,colour,aMove[0],aMove[1]) &&
+			if (aMove[0] == -128) {
+				b.gameOver = "X";
+				break;
+			} else if (b.boardMove(this,aMove[0],aMove[1]) &&
 				b.checkCheck(colour,aMove[0],aMove[1])) {
 				break;
 			}
@@ -76,7 +79,8 @@ public class Human implements PlayerInterface {
 				}
 			}
 			if (parsed[0] == 'X') {
-				System.exit(0);
+				out[0] = -128;
+				break;
 			} else {
 				System.out.println(" invalid coordinates");
 				in = new Scanner(System.in);

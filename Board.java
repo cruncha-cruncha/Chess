@@ -54,6 +54,9 @@ public class Board {
 	public static final String CYAN = "\u001B[36m";
 	public static final String YELLOW = "\u001B[33m";
 	public static final String RESET = "\u001B[0m";
+
+	// used as a dummy player to catch pawn promotions
+	private Shell shell = new Shell();
 	
 	/** 
 	 * Constructor. Initializes gameOver string, detects *nix systems, creates and populates board
@@ -146,10 +149,10 @@ public class Board {
 		}
 		
 		// update CastleSync
-		if (board[3][7] != 0)
-			CastleSync.set((byte)-33);
-		if (board[3][0] != 16)
-			CastleSync.set((byte)88);
+		if (board[4][7] != 0)
+			CastleSync.set((byte)-25);
+		if (board[4][0] != 16)
+			CastleSync.set((byte)96);
 		if (board[0][7] == -128 || board[0][7] > 15 || pieceNames[board[0][7]] != 'R')
 			CastleSync.set((byte)-57);
 		if (board[7][7] == -128 || board[7][7] > 15 || pieceNames[board[7][7]] != 'R')
@@ -489,6 +492,10 @@ public class Board {
 			// captured a piece
 			pieces[p3] = (byte) (64 | pieces[p3]);
 			board[(56&pieces[p3])>>3][7&pieces[p3]] = p3;
+			if ((-128&p0) == -128) {
+				// en passant
+				board[(56&pieces[p3])>>3][7&pieces[p1]] = -128;
+			}
 		} else {
 			board[(56&pieces[p1])>>3][7&pieces[p1]] = -128;
 		}
@@ -542,6 +549,50 @@ public class Board {
 		}
 		return pi.validateMove(current,next);
 	}
+
+	private boolean canCastle (byte current, byte newKing) {
+		boolean out = true;
+		switch (newKing) {
+			case -9:
+				// black kingside
+				if (blackInCheck) { return false; }
+				// (5,7) cannot be in check
+				boardMove(shell,current,(byte)-17);
+				calcCheck(Colour.BLACK);
+				if (blackInCheck) { out = false; }
+				undoMove();
+				break;
+			case -41:
+				// black queenside
+				if (blackInCheck) { return false; }
+				// (2,7) cannot be in check
+				boardMove(shell,current,(byte)-33);
+				calcCheck(Colour.BLACK);
+				if (blackInCheck) { out = false; }
+				undoMove();
+				break;
+			case 112:
+				// white kingside
+				if (whiteInCheck) { return false; }
+				// (5,0) cannot be in check
+				boardMove(shell,current,(byte)104);
+				calcCheck(Colour.WHITE);
+				if (whiteInCheck) { out = false; }
+				undoMove();
+				break;
+			case 80:
+				// white queenside
+				if (whiteInCheck) { return false; }
+				// (2,0) cannot be in check
+				boardMove(shell,current,(byte)88);
+				calcCheck(Colour.WHITE);
+				if (whiteInCheck) { out = false; }
+				undoMove();
+				break;
+		}
+
+		return out;
+	}
 	
 	/**
 	 * Make a move. Recognizes captures, pawn promotions, and castling. Updates pieces,
@@ -553,7 +604,7 @@ public class Board {
 	 * @param next  a new entry for the pieces array
 	 * @return true unless castling failed
 	 */
-	public boolean boardMove (PlayerInterface player, Colour c, byte current, byte next) {
+	public boolean boardMove (PlayerInterface player, byte current, byte next) {
 		byte oldCol = (byte) ((56&current)>>3);
 		byte oldRow = (byte) (7&current);
 		byte newCol = (byte) ((56&next)>>3);
@@ -564,8 +615,7 @@ public class Board {
 		// check for and handle castling
 		if (pieceNames[board[oldCol][oldRow]] == 'K') {
 			if (Math.abs(newCol-oldCol) == 2) {
-				if (inCheck(c)) {
-					// CHECK INTERMEDIATE SPACES!!
+				if (!canCastle(current,next)) {
 					moveHistory = moveHistory.prev;
 					return false;
 				} else {
@@ -594,7 +644,7 @@ public class Board {
 							pieces[board[0][7]] = -33;
 							board[3][7] = board[0][7];
 							board[0][7] = -128;
-							CastleSync.set((byte)-1);
+							CastleSync.set((byte)-25);
 							CastleSync.set((byte)-57);
 						} else {
 							// white rook
@@ -652,7 +702,7 @@ public class Board {
 			pieceNames[board[newCol][newRow]] = (byte) (0xFF&promo);
 			moveHistory.pieces[0] = (byte) (1 | moveHistory.pieces[0]);
 		}
-		
+
 		return true;
 	}
 	
@@ -719,39 +769,34 @@ public class Board {
 	 * @return true if player is in check, false if they are not.
 	 */
 	public boolean calcCheck (Colour c) {
-		Shell shell = new Shell();
 		boolean valid = false;
 		Colour o = (c == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
 		
 		if (c == Colour.BLACK) {
-			for (int i = 16; i < 32; i++) {
-				if (validateMove(o,pieces[i],pieces[0]) &&
-					boardMove(shell,o,pieces[i],pieces[0])) {
-					valid = true;
-					for (int b = 0; b < 16; b++) {
-						if (validateMove(c,pieces[b],pieces[16])) {
-							valid = false;
-							break;
-						}
+			if ((64&pieces[0]) == 0) { 
+				valid = true;
+			} else {
+				for (int i = 16; i < 32; i++) {
+					if (validateMove(o,pieces[i],pieces[0]) &&
+						boardMove(shell,pieces[i],pieces[0])) {
+						valid = true;
+						undoMove();
+						break;
 					}
-					undoMove();
-					if (valid) {break;}
 				}
 			}
 			blackInCheck = valid;
 		} else {
-			for (int i = 0; i < 16; i++) {
-				if (validateMove(o,pieces[i],pieces[16]) &&
-					boardMove(shell,o,pieces[i],pieces[16])) {
-					valid = true;
-					for (int b = 16; b < 32; b++) {
-						if (validateMove(c,pieces[b],pieces[0])) {
-							valid = false;
-							break;
-						}
+			if ((64&pieces[16]) == 0) {
+				valid = true;
+			} else {
+				for (int i = 0; i < 16; i++) {
+					if (validateMove(o,pieces[i],pieces[16]) &&
+						boardMove(shell,pieces[i],pieces[16])) {
+						valid = true;
+						undoMove();
+						break;
 					}
-					undoMove();
-					if (valid) {break;}
 				}
 			}
 			whiteInCheck = valid;

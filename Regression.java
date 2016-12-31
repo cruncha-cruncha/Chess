@@ -10,23 +10,30 @@ public class Regression {
 	public Regression () {
 		shell = new Shell();
 		b = new Board();
-		runTest();
-		//pawnTest();
+		//runTest();
+		castleTest();
 	}
 
-	private void pawnTest () {
-		byte current = b.pieces[24];
-		byte[] nexts = b.getPiece(24).getMoves(current);
+	private void castleTest () {
+		byte current = b.pieces[0];
+		byte[] nexts = b.getPiece(0).getMoves(current);
 		int a = 0;
 		while (nexts[a] != 0) {
-			System.out.println(nexts[a]);
-			if (b.boardMove(shell,Colour.WHITE,current,nexts[a])) {
+			//System.out.println(nexts[a]);
+			if (b.boardMove(shell,current,nexts[a])) {
 				b.printBoard();
 				b.undoMove();
+				System.out.println(CastleSync.canCastle((byte)-9));
+				System.out.println(CastleSync.getFlags());
+			} else {
+				System.out.println("bad move");
+				System.out.println(nexts[a]);
+				System.out.println("-done-");
 			}
+
 			a++;
 		}
-		System.out.println(a);
+		//System.out.println(a);
 	}
 
 	private void runTest () {
@@ -37,7 +44,7 @@ public class Regression {
 				byte[] nexts = b.getPiece(i).getMoves(current);
 				int a = 0;
 				while (nexts[a] != 0) {
-					if (b.boardMove(shell,Colour.BLACK,current,nexts[a])) {
+					if (b.boardMove(shell,current,nexts[a])) {
 						b.printBoard();
 						b.undoMove();
 					}
@@ -51,7 +58,7 @@ public class Regression {
 				byte[] nexts = b.getPiece(i).getMoves(current);
 				int a = 0;
 				while (nexts[a] != 0) {
-					if (b.boardMove(shell,Colour.WHITE,current,nexts[a])) {
+					if (b.boardMove(shell,current,nexts[a])) {
 						b.printBoard();
 						b.undoMove();
 					}

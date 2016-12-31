@@ -99,7 +99,7 @@ public class Queen implements PieceInterface {
 			while (x < 8 && b.board[x][row] == -128)
 				candidates[size++] = (byte) (-57&current | (x++)<<3);
 			if (x < 8 && b.board[x][row] > 15)
-				candidates[size++] = (byte) (-8&current | x<<3);
+				candidates[size++] = (byte) (-57&current | x<<3);
 			
 			x = col-1;
 			y = row-1;
@@ -147,7 +147,7 @@ public class Queen implements PieceInterface {
 			while (x < 8 && b.board[x][row] == -128)
 				candidates[size++] = (byte) (-57&current | (x++)<<3);
 			if (x < 8 && b.board[x][row] < 16)
-				candidates[size++] = (byte) (-8&current | x<<3);
+				candidates[size++] = (byte) (-57&current | x<<3);
 			
 			x = col-1;
 			y = row-1;

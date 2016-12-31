@@ -110,6 +110,15 @@ public class CastleSync {
 				break;
 		}
 	}
+
+	/**
+	 * Useful for debugging.
+	 * 
+	 * @return canCastle
+	 */
+	public static byte getFlags () {
+		return canCastle;
+	}
 	
 	/**
 	 * Allows the program to quickly check if a king cannot
