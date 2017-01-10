@@ -22,17 +22,17 @@ public class Referee {
 	private Board board;
 	private PlayerInterface wPlayer, bPlayer;
 	private BufferedWriter bw;
+	public int moveCount;
 
 	// TODO:
-	// - verfiy castling
-	// - make computer move on it's own
-	// - play with evaluation functions (penalty for castling, piece-position rewards, opening/mid/endgame detection?)
+	// - play with evaluation functions (penalty for not castling, piece-position rewards, opening/mid/endgame detection?)
 	// - make depths recursive?
 	// 
 	// "Onlya6th
 	
 	/** Constructor, main entry point for entire program. */
 	public Referee () {
+		moveCount = 0;
 		in = new Scanner(System.in);
 		board = new Board();
 		getSides();
@@ -96,7 +96,6 @@ public class Referee {
 	 */
 	private boolean go () {
 		String gameOver;
-		int moveCounter = 2;
 		while (true) {
 			if (!board.gameOver.equals("")) {
 				System.out.println(board.gameOver);
@@ -112,8 +111,8 @@ public class Referee {
 			turn = (turn == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
 			board.printBoard();
 
-			if (!board.gameOver.equals("X")) { saveToFile(moveCounter); }
-			moveCounter++;
+			if (!board.gameOver.equals("X")) { saveToFile(moveCount+2); }
+			moveCount++;
 		}
 		return true;
 	}
@@ -133,14 +132,18 @@ public class Referee {
 				bw.write(" ");
 			}
 
-			int index = board.moveHistory.pieces[1];
-			char currentChar = (char) (((56&board.moveHistory.pieces[2])>>3)+65);
-			char nextChar = (char) (((56&board.pieces[index])>>3)+65);
-			bw.write(currentChar);
-			bw.write((char)((7&board.moveHistory.pieces[2])+49));
-			bw.write("-");
-			bw.write(nextChar);
-			bw.write((char)((7&board.pieces[index])+49));
+			try {
+				int index = board.moveHistory.pieces[1];
+				char currentChar = (char) (((56&board.moveHistory.pieces[2])>>3)+65);
+				char nextChar = (char) (((56&board.pieces[index])>>3)+65);
+				bw.write(currentChar);
+				bw.write((char)((7&board.moveHistory.pieces[2])+49));
+				bw.write("-");
+				bw.write(nextChar);
+				bw.write((char)((7&board.pieces[index])+49));
+			} catch (java.lang.NullPointerException e) {
+				// do nothing
+			}
 
 			if (turn == Colour.WHITE) { bw.newLine(); }
 		} catch (java.io.IOException e) {

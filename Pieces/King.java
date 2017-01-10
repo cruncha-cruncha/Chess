@@ -54,14 +54,14 @@ public class King implements PieceInterface {
 		// ensure castle is valid
 		if (diffCol == 2) {
 			// kingside
-			if (CastleSync.canCastle(next) && b.board[5][oldRow] == -128 && b.board[6][oldRow] == -128) {
+			if (CastleSync.canCastle(next) && b.board[5][oldRow] == -128 && b.board[6][oldRow] == -128 && b.board[7][oldRow] != -128) {
 				return true;
 			} else {
 				return false;
 			}
 		} else if (diffCol == -2) { 
 			// queenside
-			if (CastleSync.canCastle(next) && b.board[1][oldRow] == -128 && b.board[2][oldRow] == -128 && b.board[3][oldRow] == -128) {
+			if (CastleSync.canCastle(next) && b.board[1][oldRow] == -128 && b.board[2][oldRow] == -128 && b.board[3][oldRow] == -128 && b.board[0][oldRow] != -128) {
 				return true;
 			} else {
 				return false;
@@ -134,7 +134,7 @@ public class King implements PieceInterface {
 				candidates[count++] = (byte) (-64&current | (col+1)<<3 | row-1);
 			if (col+2 < 8 && CastleSync.canCastle((byte)(16+current))) {
 				// kingside
-				if (b.board[5][row] == -128)
+				if (b.board[5][row] == -128 && b.board[7][row] != -128)
 					candidates[count++] = (byte) (16+current);
 			}
 		}
@@ -147,7 +147,7 @@ public class King implements PieceInterface {
 				candidates[count++] = (byte) (-64&current | (col-1)<<3 | row-1);
 			if (col-2 < 8 && CastleSync.canCastle((byte)(current-16))) {
 				// queenside
-				if (b.board[1][row] == -128 && b.board[3][row] == -128)
+				if (b.board[1][row] == -128 && b.board[3][row] == -128 && b.board[0][row] != -128)
 					candidates[count++] = (byte) (current-16);
 			}
 		}

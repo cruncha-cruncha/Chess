@@ -57,6 +57,10 @@ public class Board {
 
 	// used as a dummy player to catch pawn promotions
 	private Shell shell = new Shell();
+
+	//
+	// GET MORE PARAMS FROM USER!!!
+	// 
 	
 	/** 
 	 * Constructor. Initializes gameOver string, detects *nix systems, creates and populates board
@@ -503,22 +507,18 @@ public class Board {
 		board[(56&p2)>>3][7&p2] = p1;
 		pieces[p1] = p2;
 		
-		// we were in check
+		// black was in check
 		if ((32&p0) == 32) {
-			if (p1 < 16) {
-				reCheck(Colour.BLACK);
-			} else {
-				reCheck(Colour.WHITE);
-			}
+			blackInCheck = true;
+		} else {
+			blackInCheck = false;
 		}
 		
-		// we put them in check
+		// white was in check
 		if ((16&p0) == 16) {
-			if (p1 < 16) {
-				reCheck(Colour.WHITE);
-			} else {
-				reCheck(Colour.BLACK);
-			}
+			whiteInCheck = true;
+		} else {
+			whiteInCheck = false;
 		}
 		
 		moveHistory = moveHistory.prev;
@@ -716,6 +716,15 @@ public class Board {
 	 * @return true if move is valid, false if move was reverted
 	 */
 	public boolean checkCheck (Colour c, byte current, byte next) {
+		Colour o = (c == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
+		if (calcCheck(o)) {
+			if (o == Colour.BLACK) {
+				moveHistory.pieces[0] = (byte) (32 | moveHistory.pieces[0]);
+			} else {
+				moveHistory.pieces[0] = (byte) (16 | moveHistory.pieces[0]);
+			}
+		}
+
 		// ensure move does not put player in or keep in check
 		if (inCheck(c)) {
 			if (calcCheck(c)) {
@@ -723,17 +732,16 @@ public class Board {
 				return false;
 			}
 			// flag was in check
-			moveHistory.pieces[0] = (byte) (32 | moveHistory.pieces[0]);
+			if (c == Colour.BLACK) {
+				moveHistory.pieces[0] = (byte) (32 | moveHistory.pieces[0]);
+			} else {
+				moveHistory.pieces[0] = (byte) (16 | moveHistory.pieces[0]);
+			}
 		} else if (calcCheck(c)) {
 			undoMove();
 			reCheck(c);
 			return false;
 		}
-		
-		// flag if move put other player into check
-		Colour o = (c == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
-		if (calcCheck(o))
-			moveHistory.pieces[0] = (byte) (16 | moveHistory.pieces[0]);
 		
 		return true;
 	}

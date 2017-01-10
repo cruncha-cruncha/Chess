@@ -9,8 +9,8 @@ public class OldPosition {
 	// pieces[0] (the flags byte) bits:
 	// 7 = en passant
 	// 6 = captured a piece non passant
-	// 5 = was in check
-	// 4 = put other in check
+	// 5 = black was in check
+	// 4 = white was in check
 	// 3 = kingside castle
 	// 2 = queenside castle
 	// 1 = sync not castle

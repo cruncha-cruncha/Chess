@@ -4,6 +4,8 @@ import Chess.*;
 
 import java.util.Scanner;
 import java.util.Arrays;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Computer contains the AI components of this project, and implements
@@ -16,6 +18,7 @@ public class Computer implements PlayerInterface {
 	private Board b;
 	private Colour colour, tc;   // colour = our colour, tc = their colour
 	private char promoChar = 'N';
+	private byte flags, flagsMask;
 
 	// These are large values, outside the range produced by the eval() function.
 	private static final int WIN = 15000;
@@ -26,6 +29,18 @@ public class Computer implements PlayerInterface {
 	// once instead of constantly checking colours or writing two nearly
 	// identical classes.
 	private int mLow, mHi, tLow, tHi;
+
+	// make second evaluation function
+
+	// Weakest pawns = F2, F7
+	// 
+	// 1 - control center
+	// 2 - develop minor pieces (knights & bishops)
+	// 3 - castle (king safety)
+	// 4 - finish development (including queen & rooks)
+	// 5 - attack, usually by pushing center pawns up
+	// 
+	// encourage good openings (discourage pawn f6)
 	
 	/**
 	 * Constructor, initiallizes piece ranges
@@ -36,12 +51,22 @@ public class Computer implements PlayerInterface {
 	public Computer (Board b, Colour colour) {
 		this.b = b;
 		this.colour = colour;
-		tc = (colour == Colour.BLACK) ? Colour.WHITE : Colour.BLACK;
-		in = new Scanner(System.in);
-		mLow = (colour == Colour.BLACK) ? 0 : 16;
+
+		if (colour == Colour.BLACK) {
+			tc = Colour.WHITE;
+			mLow = 0;
+			tLow = 16;
+			flagsMask = 13;
+		} else {
+			tc = Colour.BLACK;
+			mLow = 16;
+			tLow = 0;
+			flagsMask = 50;
+		}
 		mHi = mLow+16;
-		tLow = (colour == Colour.BLACK) ? 16 : 0;
 		tHi = tLow+16;
+
+		in = new Scanner(System.in);
 	}
 
 	/**
@@ -53,19 +78,25 @@ public class Computer implements PlayerInterface {
 		return colour;
 	}
 	
-	/** Calls getMove(), then ensures move does not put Human in check. */
+	/** Dispatch minimax, parse result, move */
 	public void makeMove() {
-		String input;
-		for ( ; ; ) {
-			byte[] aMove = getMove();
-			if (aMove[0] == -128) {
-				b.gameOver = "X";
-				break;
-			} else if (b.boardMove(this,aMove[0],aMove[1]) &&
-				b.checkCheck(colour,aMove[0],aMove[1])) {
-				break;
-			}
-			System.out.println(" invalid move");
+		System.out.println("starting MiniMax");
+		byte[] out = root();
+
+		char currentChar = (char) (((56&out[0])>>3)+65);
+		char nextChar = (char) (((56&out[1])>>3)+65);
+		System.out.print(currentChar);
+		System.out.print((char)((7&out[0])+49));
+		System.out.print("-");
+		System.out.print(nextChar);
+		System.out.println((char)((7&out[1])+49));
+
+		// handle end states so as not to confuse the user
+		if (out[0] == -128) {
+			b.gameOver = "X";
+		} else if (b.boardMove(this,out[0],out[1]) &&
+			!b.checkCheck(colour,out[0],out[1])) {
+				b.undoMove();
 		}
 	}
 
@@ -77,14 +108,15 @@ public class Computer implements PlayerInterface {
 	 */
 	public class Node {
 		Node parent;
-		int alpha,beta;
-		boolean blackInCheck, whiteInCheck;
+		int alpha,beta,value;
+		boolean blackInCheck, whiteInCheck, firstVal;
 
 		/** Root node constructor */
 		public Node () {
 			alpha = Integer.MIN_VALUE;
 			beta = Integer.MAX_VALUE;
 			getChecks();
+			firstVal = true;
 		}
 
 		/** Child node constructor */
@@ -93,6 +125,7 @@ public class Computer implements PlayerInterface {
 			alpha = p.alpha;
 			beta = p.beta;
 			getChecks();
+			firstVal = true;
 		}
 
 		/** Check is used to determine end game states */
@@ -101,14 +134,24 @@ public class Computer implements PlayerInterface {
 			whiteInCheck = b.calcCheck(Colour.WHITE);
 		}
 
+		// gun shy honey, collect it all
+		// the dust inside, the rusted souls
+		// you should get a ride
+		// cause you can't control
+		// the heart that beats
+		// under the bone 
+		// come on my comeback chameleon, give it up
+		// you've got your life to attend to, buttercup
+		// you're entertaining the talk that is told through the teeth of the mouths of millions
+		// dying to meet ya
+
 		/**
 		 * Update alpha using a child node
 		 * 
 		 * @param n  a child node
 		 */
 		public void updateAlpha (Node n) {
-			if (n.beta > alpha)
-				alpha = n.beta;
+			updateAlpha(n.value);
 		}
 
 		/**
@@ -116,9 +159,14 @@ public class Computer implements PlayerInterface {
 		 * 
 		 * @param b  a beta value
 		 */
-		public void updateAlpha (int b) {
-			if (b > alpha)
-				alpha = b;
+		public void updateAlpha (int v) {
+			if (v > alpha) {
+				alpha = v;
+				value = v;
+			} else if (firstVal) {
+				value = v;
+			}
+			firstVal = false;
 		}
 
 		/**
@@ -127,8 +175,7 @@ public class Computer implements PlayerInterface {
 		 * @param n  a child node
 		 */
 		public void updateBeta (Node n) {
-			if (n.alpha < beta)
-				beta = n.alpha;
+			updateBeta(n.value);
 		}
 
 		/**
@@ -136,9 +183,14 @@ public class Computer implements PlayerInterface {
 		 * 
 		 * @param a  an alpha value
 		 */
-		public void updateBeta (int a) {
-			if (a < beta)
-				beta = a;
+		public void updateBeta (int v) {
+			if (v < beta) {
+				beta = v;
+				value = v;
+			} else if (firstVal) {
+				value = v;
+			}
+			firstVal = false;
 		}
 	}
 
@@ -155,9 +207,6 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
-	// DOESN'T MAKE THE OBVIOUS CHECKMATE??
-	// make sure end games are being correctly identified and handled
-
 	/**
 	 * The root node
 	 * 
@@ -168,8 +217,9 @@ public class Computer implements PlayerInterface {
 		Piece[] pieces = new Piece[16];
 		Node node = new Node();
 
-		int iBest = 0;
-		int aBest = 0;
+		flags = (byte) (flagsMask&CastleSync.getFlags());
+
+		Dispatch d = new Dispatch();
 
 		for (int i = 0; i < 16; i++) {
 			if ((64&b.pieces[i+mLow]) == 64) {
@@ -177,7 +227,9 @@ public class Computer implements PlayerInterface {
 				pieces[i].evals = new int[pieces[i].nexts.length];
 				int a = 0;
 				while (pieces[i].nexts[a] != 0) {
-					pieces[i].evals[a] = depthOne(node, pieces[i].current, pieces[i].nexts[a]);
+					pieces[i].evals[a] = oddDepth(node, pieces[i].current, pieces[i].nexts[a], d);
+					if (pieces[i].evals[a] > (-100-STALE) && pieces[i].evals[a] <= (0-STALE)) // LIMIT DEPTH TO 100
+						pieces[i].evals[a] = pieces[i].evals[a] * -1;						
 					node.updateAlpha(pieces[i].evals[a]);
 					a++;
 				}
@@ -185,22 +237,31 @@ public class Computer implements PlayerInterface {
 		}
 
 		// find the highest eval
+		Random rand = new Random(ThreadLocalRandom.current().nextInt());
 		byte[] out = new byte[2];
+		int count = 0;
 		outer:
 		for (int i = 0; i < 16; i++) {
 			int a = 0;
 			while (pieces[i] != null && pieces[i].nexts[a] != 0) {
 				if (pieces[i].evals[a] == node.alpha) {
-					out[0] = pieces[i].current;
-					out[1] = pieces[i].nexts[a];
-					break outer;
+					//out[0] = pieces[i].current;
+					//out[1] = pieces[i].nexts[a];
+					//break outer;
+					count++;
+					if (rand.nextDouble() < (1.0/count)) {
+						out[0] = pieces[i].current;
+						out[1] = pieces[i].nexts[a];
+					}
 				}
 				a++;
 			}
 		}
 
-		// catch "ignore" states? would they ever be the only option?
+		System.out.println(count);
+		System.out.println(node.alpha);
 
+		// catch "ignore" states? would they ever be the only option?
 		if (node.alpha == WIN) {
 			b.gameOver = "Computer wins!";
 		} else if (node.alpha == (0-WIN)) {
@@ -210,6 +271,57 @@ public class Computer implements PlayerInterface {
 		}
 		
 		return out;
+	}
+
+	public class Dispatch {
+		private boolean simpleEval;
+		// PRIVATE
+		public int curDepth, maxDepth;
+
+		public Dispatch () {
+			simpleEval = true;
+			curDepth = 0;
+			maxDepth = 2;
+		}
+
+		public Dispatch (boolean eval, int depth) {
+			simpleEval = eval;
+			curDepth = 0;
+			maxDepth = depth;
+		}
+
+		public boolean downOne () {
+			curDepth += 1;
+			return (curDepth >= maxDepth) ? true : false;
+		}
+
+		public void upOne () {
+			curDepth -= 1;
+		}
+
+		public int lookAhead () {
+			if ((curDepth%2) == 0) {
+				return curDepth/2;
+			} else {
+				return (curDepth-1)/2;
+			}
+			// 0 0
+			// 1 0
+			// 2 1
+			// 3 1
+			// 4 2
+			// 5 2
+		}
+
+		public int eval () {
+			/*
+			if (simpleEval) {
+				return simpleEval();
+			} else {
+				return betterEval();
+			}*/
+			return simpleEval();
+		}
 	}
 
 	/**
@@ -238,36 +350,33 @@ public class Computer implements PlayerInterface {
 		return 0;
 	}
 
-	/**
-	 * Attempts to move a piece from current to next, then dispatches
-	 * and evaluates all child moves. The actual piece moved is unimportant
-	 * to the method. Corresponds to depth one of the search tree.
-	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
-	 */
-	private int depthOne (Node parent, byte current, byte next) {
+	private int oddDepth (Node parent, byte current, byte next, Dispatch d) {
 		if (b.boardMove(this,current,next)) {
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
-			int badMoves = checkMyMoves(node);
-			if (badMoves != 0) {
+			int badMove = checkMyMoves(node);
+			if (badMove != 0) {
 				b.undoMove();
-				return badMoves;
+				return badMove + d.lookAhead();
 			}
-			
+
+			if (d.downOne()) {
+				int out = d.eval();
+				b.undoMove();
+				d.upOne();
+				return out;
+			}
+
 			outer:
 			for (int i = 0; i < 16; i++) {
 				if ((64&b.pieces[i+tLow]) == 64) {
 					pieces[i] = new Piece(i+tLow);
 					int a = 0;
 					while (pieces[i].nexts[a] != 0) {
-						node.updateBeta(depthTwo(node, pieces[i].current, pieces[i].nexts[a]));
-						if (node.beta <= node.alpha)
+						node.updateBeta(evenDepth(node, pieces[i].current, pieces[i].nexts[a], d));
+						if (node.beta < node.alpha)
 							break outer;
 						a++;
 					}
@@ -275,8 +384,9 @@ public class Computer implements PlayerInterface {
 			}
 
 			b.undoMove();
+			d.upOne();
 
-			return node.beta;
+			return node.value;
 		} else {
 			return Integer.MIN_VALUE; // ignore, tried to castle
 		}
@@ -319,104 +429,23 @@ public class Computer implements PlayerInterface {
 	 * @param next  the next desired position of a piece.
 	 * @return the utility of the move (from current to next).
 	 */
-	private int depthTwo (Node parent, byte current, byte next) {
+	private int evenDepth (Node parent, byte current, byte next, Dispatch d) {
 		if (b.boardMove(this,current,next)) {
 
 			Piece[] pieces = new Piece[16];
 			Node node = new Node(parent);
 
-			int badMoves = checkTheirMoves(node);
-			if (badMoves != 0) {
+			int badMove = checkTheirMoves(node);
+			if (badMove != 0) {
 				b.undoMove();
-				return badMoves;
+				return badMove - d.lookAhead();
 			}
 
-			outer:
-			for (int i = 0; i < 16; i++) {
-				if ((64&b.pieces[i+mLow]) == 64) {
-					pieces[i] = new Piece(i+mLow);
-
-					int a = 0;
-					while (pieces[i].nexts[a] != 0) {
-						node.updateAlpha(depthThree(node, pieces[i].current, pieces[i].nexts[a]));
-						if (node.beta <= node.alpha)
-							break outer;
-						a++;
-					}
-				}
-			}
-
-			b.undoMove();
-
-			return node.alpha;
-		} else {
-			return Integer.MAX_VALUE; // ignore, tried to castle
-		}
-	}
-
-	/**
-	 * Attempts to move a piece from current to next, then dispatches
-	 * and evaluates all child moves. The actual piece moved is unimportant
-	 * to the method. Corresponds to depth three of the searh tree.
-	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
-	 */
-	private int depthThree (Node parent, byte current, byte next) {
-		if (b.boardMove(this,current,next)) {
-			Piece[] pieces = new Piece[16];
-			Node node = new Node(parent);
-
-			int badMoves = checkMyMoves(node);
-			if (badMoves != 0) {
+			if (d.downOne()) {
+				int out = d.eval();
 				b.undoMove();
-				return badMoves+1;
-			}
-
-			outer:
-			for (int i = 0; i < 16; i++) {
-				if ((64&b.pieces[i+tLow]) == 64) {
-					pieces[i] = new Piece(i+tLow);
-					int a = 0;
-					while (pieces[i].nexts[a] != 0) {
-						node.updateBeta(depthFour(node, pieces[i].current, pieces[i].nexts[a]));
-						if (node.beta <= node.alpha)
-							break outer;
-						a++;
-					}
-				}
-			}
-
-			b.undoMove();
-
-			return node.beta;
-		} else {
-			return Integer.MIN_VALUE; // ignore, tried to castle
-		}
-	}
-
-	/**
-	 * Attempts to move a piece from current to next, then dispatches
-	 * and evaluates all child moves. The actual piece moved is unimportant
-	 * to the method. Corresponds to depth two of the searh tree.
-	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
-	 */
-	private int depthFour (Node parent, byte current, byte next) {
-		if (b.boardMove(this,current,next)) {
-
-			Piece[] pieces = new Piece[16];
-			Node node = new Node(parent);
-
-			int badMoves = checkTheirMoves(node);
-			if (badMoves != 0) {
-				b.undoMove();
-				return badMoves-1;
+				d.upOne();
+				return out;
 			}
 
 			outer:
@@ -425,8 +454,9 @@ public class Computer implements PlayerInterface {
 					pieces[i] = new Piece(i+mLow);
 					int a = 0;
 					while (pieces[i].nexts[a] != 0) {
-						node.updateAlpha(depthFive(node, pieces[i].current, pieces[i].nexts[a]));
-						if (node.beta <= node.alpha)
+						node.updateAlpha(oddDepth(node, pieces[i].current, pieces[i].nexts[a], d));
+						// should it be less than or equal to???
+						if (node.beta < node.alpha)
 							break outer;
 						a++;
 					}
@@ -434,98 +464,38 @@ public class Computer implements PlayerInterface {
 			}
 
 			b.undoMove();
+			d.upOne();
 
-			return node.alpha;
+			return node.value;
 		} else {
 			return Integer.MAX_VALUE; // ignore, tried to castle
 		}
 	}
 
-	/**
-	 * Attempts to move a piece from current to next, then dispatches
-	 * and evaluates all child moves. The actual piece moved is unimportant
-	 * to the method. Corresponds to depth three of the searh tree.
-	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
-	 */
-	private int depthFive (Node parent, byte current, byte next) {
-		if (b.boardMove(this,current,next)) {
-			Piece[] pieces = new Piece[16];
-			Node node = new Node(parent);
-
-			int badMoves = checkMyMoves(node);
-			if (badMoves != 0) {
-				b.undoMove();
-				return badMoves+2;
-			}
-
-			outer:
-			for (int i = 0; i < 16; i++) {
-				if ((64&b.pieces[i+tLow]) == 64) {
-					pieces[i] = new Piece(i+tLow);
-					int a = 0;
-					while (pieces[i].nexts[a] != 0) {
-						node.updateBeta(depthSix(node, pieces[i].current, pieces[i].nexts[a]));
-						if (node.beta <= node.alpha)
-							break outer;
-						a++;
-					}
-				}
-			}
-
-			b.undoMove();
-
-			return node.beta;
-		} else {
-			return Integer.MIN_VALUE; // ignore, tried to castle
-		}
-	}
-
-	/**
-	 * Attempts to move a piece from current to next, then evaluates the
-	 * utility of the resulting board configuration. Corresponds to depth
-	 * four of the search tree.
-	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
-	 */
-	private int depthSix (Node parent, byte current, byte next) {
-		if (b.boardMove(this,current,next)) {
-			Node node = new Node(parent);
-
-			int badMoves = checkTheirMoves(node);
-			if (badMoves != 0) {
-				b.undoMove();
-				return badMoves-2;
-			}
-
-			int out = eval();
-
-			b.undoMove();
-
-			return out;
-		} else {
-			return Integer.MAX_VALUE; // ignore, tried to castle
-		}
-	}
-
+	
 	/**
 	 * The evaluation function for a board state. Emphasis on speed.
 	 * @return int  the expected utility
 	 */
-	private int eval () {
+	private int simpleEval () {
 		int sum = 0;
+
 		for (int i = mLow; i < mHi; i++)
 			if ((64&b.pieces[i]) == 64)
 				sum += pieceValue(i);
 		for (int i = tLow; i < tHi; i++)
 			if ((64&b.pieces[i]) == 64)
 				sum -= pieceValue(i);
+
+		// HOW THE FUCK DOES THIS WORK??
+		if (flags == 0 && (flagsMask&CastleSync.getFlags()) != 0) {
+			if ((56&b.pieces[mLow]) == 16 || (56&b.pieces[mLow]) == 48) {
+				sum += 2;
+			} else {
+				sum -= 2;
+			}
+		}
+
 		return sum;
 	}
 
@@ -551,26 +521,6 @@ public class Computer implements PlayerInterface {
 		return 0;
 	}
 	
-	/**
-	 * Standard method required by inheritance. Similar to Human counterpart.
-	 * 
-	 * @return byte[] of length two, corresponding to the current and desired location of 
-	 * 		   a piece. Format is; [7-6]: unused, [5-3]: column, [2-0] row.
-	 */
-	private byte[] getMove() {
-		System.out.println("starting MiniMax");
-		byte[] out = root();
-
-		char currentChar = (char) (((56&out[0])>>3)+65);
-		char nextChar = (char) (((56&out[1])>>3)+65);
-		System.out.print(currentChar);
-		System.out.print((char)((7&out[0])+49));
-		System.out.print("-");
-		System.out.print(nextChar);
-		System.out.println((char)((7&out[1])+49));
-
-		return out;
-	}
 	
 	/**
 	 * "Catch" pawn promotion, promote to queen or knight (these will cover all movement options possible).

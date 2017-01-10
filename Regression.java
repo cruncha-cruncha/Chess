@@ -10,8 +10,8 @@ public class Regression {
 	public Regression () {
 		shell = new Shell();
 		b = new Board();
-		//runTest();
-		castleTest();
+		runTest();
+		//castleTest();
 	}
 
 	private void castleTest () {
