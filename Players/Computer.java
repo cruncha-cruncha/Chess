@@ -19,6 +19,8 @@ public class Computer implements PlayerInterface {
 	private Colour colour, tc;   // colour = our colour, tc = their colour
 	private char promoChar = 'N';
 	private byte flags, flagsMask;
+	private boolean simpleEval;
+	private int maxDepth;
 
 	// These are large values, outside the range produced by the eval() function.
 	private static final int WIN = 15000;
@@ -48,9 +50,11 @@ public class Computer implements PlayerInterface {
 	 * @param b  the board to play with
 	 * @param colour  our piece colour (white or black)
 	 */
-	public Computer (Board b, Colour colour) {
+	public Computer (Board b, Colour colour, Boolean simpleEval, int maxDepth) {
 		this.b = b;
 		this.colour = colour;
+		this.simpleEval = simpleEval;
+		this.maxDepth = maxDepth;
 
 		if (colour == Colour.BLACK) {
 			tc = Colour.WHITE;
@@ -133,17 +137,6 @@ public class Computer implements PlayerInterface {
 			blackInCheck = b.calcCheck(Colour.BLACK);
 			whiteInCheck = b.calcCheck(Colour.WHITE);
 		}
-
-		// gun shy honey, collect it all
-		// the dust inside, the rusted souls
-		// you should get a ride
-		// cause you can't control
-		// the heart that beats
-		// under the bone 
-		// come on my comeback chameleon, give it up
-		// you've got your life to attend to, buttercup
-		// you're entertaining the talk that is told through the teeth of the mouths of millions
-		// dying to meet ya
 
 		/**
 		 * Update alpha using a child node
@@ -274,20 +267,10 @@ public class Computer implements PlayerInterface {
 	}
 
 	public class Dispatch {
-		private boolean simpleEval;
-		// PRIVATE
-		public int curDepth, maxDepth;
+		public int curDepth;
 
 		public Dispatch () {
-			simpleEval = true;
 			curDepth = 0;
-			maxDepth = 2;
-		}
-
-		public Dispatch (boolean eval, int depth) {
-			simpleEval = eval;
-			curDepth = 0;
-			maxDepth = depth;
 		}
 
 		public boolean downOne () {
@@ -305,12 +288,6 @@ public class Computer implements PlayerInterface {
 			} else {
 				return (curDepth-1)/2;
 			}
-			// 0 0
-			// 1 0
-			// 2 1
-			// 3 1
-			// 4 2
-			// 5 2
 		}
 
 		public int eval () {

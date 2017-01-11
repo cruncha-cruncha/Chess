@@ -1,15 +1,18 @@
 package Chess;
 
+import Chess.GUI.*;
 import Chess.Pieces.*;
 import Chess.Players.*;
 
 import java.util.LinkedList;
 import java.util.Scanner;
+/*
 import javax.swing.*;
 import java.awt.*;
 import javax.swing.table.*;
 import java.awt.event.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+*/
 
 /**
  *
@@ -69,8 +72,6 @@ public class Board {
 	public Board () {
 		gameOver = "";
 		isUnix = detectUnix();
-		setupBoard(); 
-		printBoard();
 	}
 	
 	/**
@@ -94,23 +95,26 @@ public class Board {
 	 * 
 	 * @return true, program exits on a bad board.
 	 */
-	private boolean setupBoard () {
-		Scanner in = new Scanner(System.in);
-		System.out.print("use default configuration? (y/n): ");
-		String choice = in.next().toLowerCase();
+	public BoardOptions setupBoard () {
+		//Scanner in = new Scanner(System.in);
+		//System.out.print("use default configuration? (y/n): ");
+		//String choice = in.next().toLowerCase();
+		System.out.println("<loading swing>");
 		initVars();
-		if (choice.equals("n")) {
-			char[][] out = askBoard();
-			if (out[0][0] == 'x') {
+		//if (choice.equals("n")) {
+		BoardGUI gui = new BoardGUI();
+		BoardOptions options = gui.askBoard();
+			//char[][] out = askBoard();
+			if (options.board[0][0] == 'x') {
 				System.out.println("Fatal Error: could not parse board");
 				System.exit(0);
 			}
-			fillPieces(out);
-		} else {
-			fillPieces();
-		}
+			fillPieces(options.board);
+		//} else {
+		//	fillPieces();
+		//}
 		fillBoard();
-		return true;
+		return options;
 	}
 	
 	/**
@@ -178,7 +182,6 @@ public class Board {
 		}
 	}
 	
-
 	/**
 	 * Create and populate the pieces and pieceNames array for a standard board configuration.
 	 */
@@ -243,120 +246,6 @@ public class Board {
 				}
 			}
 		}
-	}
-	
-	/**
-	 * If user elects to specify their own board configuration, this method handles it. First, it creates
-	 * a GUI interface for convenience. When the user is done, their configuration checked for correctness.
-	 * 
-	 * @return a valid board configuration, specified using uppercase and lowercase chars representing
-	 * 		   piece codes.
-	 */
-	private char[][] askBoard () {
-		System.out.println("<loading swing>"); // because it takes forever to load because I'm bad at Swing
-		char[][] out = new char[8][8];
-		AtomicBoolean paused = new AtomicBoolean(true); // is this skookum?
-		
-		JFrame mainFrame = new JFrame("enter board configuration");
-		mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-		mainFrame.setSize(340,205);
-		mainFrame.setLayout(new FlowLayout());
-		
-		JPanel input = new JPanel();
-		String[][] data = {{"8","","","","","","","",""},
-						   {"7","","","","","","","",""},
-						   {"6","","","","","","","",""},
-						   {"5","","","","","","","",""},
-						   {"4","","","","","","","",""},
-						   {"3","","","","","","","",""},
-						   {"2","","","","","","","",""},
-						   {"1","","","","","","","",""},
-						   {"","A","B","C","D","E","F","G","H"}};
-		String[] pos = {"","A","B","C","D","E","F","G","H"};
-		DefaultTableModel model = new DefaultTableModel(data,pos);
-		JTable table = new JTable(model);
-		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-		for (int i = 0; i < 9; i++)
-			table.getColumnModel().getColumn(i).setPreferredWidth(10);
-		table.putClientProperty("terminateEditOnFocusLost", true);
-		table.setGridColor(Color.black);
-		input.add(table);
-		mainFrame.add(input);
-		
-		JPanel options = new JPanel();
-		options.setLayout(new BoxLayout(options, BoxLayout.Y_AXIS));
-		JTextArea instructions = new JTextArea(1,8);
-		instructions.setEditable(false);
-		instructions.append("white = lowercase \n");
-		instructions.append("black = UPPERCASE \n");
-		instructions.append("pawn = P/p \n");
-		instructions.append("knight = N/n \n");
-		instructions.append("bishop = B/b \n");
-		instructions.append("rook = R/r \n");
-		instructions.append("queen = Q/q \n");
-		instructions.append("king = K/k");
-		options.add(instructions);
-		JButton done = new JButton("done");
-		options.add(done);
-		mainFrame.add(options);
-		
-		done.addActionListener(new ActionListener(){
-			public void actionPerformed(ActionEvent ae){
-				for (int i = 0; i < 8; i++) {
-					for (int j = 0; j < 8; j++) {
-						String s = (String) table.getValueAt(7-j,i+1);
-						if (!s.equals("")) {
-							out[i][j] = s.charAt(0);
-						}
-					}
-				}
-				
-				int[] count = new int[12];
-				String key = "kqrbnpKQRBNP";
-				outer:
-				for (int i = 0; i < 8; i++) {
-					for (int j = 0; j < 8; j++) {
-						char c = out[i][j];
-						if (c != 0) {
-							int index = key.indexOf(c);
-						if ((index == -1 ) || ((c == 'P' || c == 'p') && (j == 0 || j == 7))) {
-								// if an unkown character is present, discard the board
-								// also, cannot have pawn on the back ranks
-								out[0][0] = 'x';
-								paused.set(false);
-								return;
-							} else {
-								count[index] += 1;
-							}
-						}
-					}
-				}
-				
-				mainFrame.dispose();
-				
-				// must have a king of each color, and no more pieces than allowed
-				if (count[0] != 1 || count[6] != 1 || count[1] > 9 || count[7] > 9 || count[2] > 10 || count[8] > 10 ||
-					count[3] > 10 || count[9] > 10 || count[4] > 10 || count[10] > 10 || count[5] > 8 || count[11] > 8 ||
-				    count[1]+count[2]+count[3]+count[4]+count[5] > 15 || count[7]+count[8]+count[9]+count[10]+count[11] > 15) {
-					out[0][0] = 'x';
-					paused.set(false);
-					return;
-				}
-				
-				paused.set(false);
-			}
-		});
-		
-		mainFrame.setVisible(true);
-		
-		while (true) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) { }
-			if (!paused.get())
-				break;
-		}
-		return out;
 	}
 	
 	/**
