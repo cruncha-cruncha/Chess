@@ -2,8 +2,8 @@ package Chess;
 
 /**
  * This class keeps track of King and Rook movements. It does not ultimately decide
- * whether a king can castle, but provides a quick, early decision if pieces have
- * moved.
+ * whether a king can castle (does not account for check), but provides a quick,
+ * early decision if pieces have moved.
  *
  * @author  Liam Marcassa
  */
@@ -112,7 +112,7 @@ public class CastleSync {
 	}
 
 	/**
-	 * Useful for debugging.
+	 * Used by Computer to reward/punish castling moves.
 	 * 
 	 * @return canCastle
 	 */

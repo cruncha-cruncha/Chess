@@ -9,11 +9,6 @@ import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 
-// "6-8 page document describing the use and design of your system"
-// chess club and scholastic centre of st. louis
-// mato jelic
-
-
 /**
  * This class is the main entry to the program. It initilializes all required variables,
  * governs turn-based play, and handles game endings.
@@ -21,14 +16,17 @@ import java.io.FileWriter;
  * @author  Liam Marcassa
  */
 public class Referee {
-	private Colour turn;
+	private Colour turn; 
 	private Scanner in;
 	private Board board;
-	private PlayerInterface wPlayer, bPlayer;
-	private BufferedWriter bw;
+	private PlayerInterface wPlayer, bPlayer; // white player and black player
+	private BufferedWriter bw; // for logging moves out to file
 	public int moveCount;
 	
-	/** Constructor, main entry point for entire program. */
+	/** 
+	 * Main entry point for entire program. Asks for options, initializes board and players,
+	 * then starts the game.
+	 */
 	public Referee () {
 		moveCount = 0;
 		in = new Scanner(System.in);
@@ -57,6 +55,12 @@ public class Referee {
 		}
 	}
 
+	/**
+	 * Set turn, wPlayer and bPlayer.
+	 * 
+	 * @param  options the user-specified parameters
+	 * @return         always true
+	 */
 	private boolean setupGame (BoardOptions options) {
 		if (options.firstColour == Colour.BLACK) {
 			turn = Colour.BLACK;
@@ -85,9 +89,9 @@ public class Referee {
 	}
 	
 	/**
-	 * Regulates turns, checks for end condition.
+	 * Regulates turns, checks for end conditions, passes moves to file.
 	 * 
-	 * @return true if no error
+	 * @return always true
 	 */
 	private boolean go () {
 		String gameOver;
@@ -159,7 +163,7 @@ public class Referee {
 	}
 	
 	/**
-	 * Entry point of program
+	 * Creates a Referee
 	 * 
 	 * @param args  unused
 	 */

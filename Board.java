@@ -8,12 +8,11 @@ import java.util.LinkedList;
 import java.util.Scanner;
 
 /**
+ * Represents a chess board, and is responsible for ensuring each move is valid.
+ * Throughout the code, effort has been taken to seperate "check" detection and
+ * action from everything else, since it is a fairly intensive process (more on
+ * this decision in the report).
  *
- * Throughout the code, effort has been taken to seperate "check" from everything else,
- * since it is fairly intensive.
- *
- * 
- * 
  * @author  Liam Marcassa
  */
 public class Board {
@@ -22,7 +21,7 @@ public class Board {
 	private static PieceInterface king, queen, rook, bishop, knight, pawn;
 	private boolean blackInCheck, whiteInCheck;
 
-	// Used to indicate end game state: either a player won, or stalemate. If the game is not
+	// Used to indicate end game states: either a mate or stale. If the game is not
 	// over, is kept blank.
 	public String gameOver;
 
@@ -30,33 +29,32 @@ public class Board {
 	public OldPosition moveHistory;
 
 	// pieces and pieceNames together provide a complete board specification. Each element of 
-	// pieces contains the following bits; [7]: colour, 0=white, 1=black; [6] in play, 1=in play,
-	// 0=captured; [5-3]: column of piece (x coordinate); [2-0]: row of piece (y coordiante).
+	// pieces contains the following bits; [7]: colour (0=white, 1=black); [6] in play (1=in play,
+	// 0=captured); [5-3]: column/file of piece (x coordinate); [2-0]: row/rank of piece (y coordiante).
 	// Location A1 is at (0,0). The black king is always at pieces[0], and the white king is 
 	// always at pieces[16] (see #fillPieces() for others). Since pawns can be promoted into
 	// other pieces, pieceNames is required to indicate which type of piece each pieces[x] is. 
 	public byte[] pieces;
 	public byte[] pieceNames;
 
-	// board is a direct representation of a chess board: a square, 8x8 matrix. If no piece is on
+	// board is a direct representation of a chess board: an 8x8 matrix. If no piece is on
 	// square (x,y), board[x][y] == -128, else: board[ (56 & pieces[i]) >> 3 ][ (7 & pieces[i]) ] == i
 	public byte[][] board;
 	
 	// ASCII output is terrible for chess, but I have no experience with Swing. In an attempt to 
 	// make the output more clear, colour can be used in *nix systems to differentiate between
-	// players. This has only been tested in OS X. The colour codes were taken from:
+	// players (this has only been tested in OS X however). The colour codes were taken from:
 	// http://cesarloachamin.github.io/2015/03/31/System-out-print-colors-and-unicode-characters/
 	private boolean isUnix;
 	public static final String CYAN = "\u001B[36m";
 	public static final String YELLOW = "\u001B[33m";
 	public static final String RESET = "\u001B[0m";
 
-	// used as a dummy player to catch pawn promotions
+	// used as a dummy player to catch pawn promotions when detecting check
 	private Shell shell = new Shell();
 	
 	/** 
-	 * Constructor. Initializes gameOver string, detects *nix systems, creates and populates board
-	 * (and pieces and pieceNames and everything else), and finally prints the board th console.
+	 * Initializes gameOver string and detects *nix systems.
 	 */
 	public Board () {
 		gameOver = "";
@@ -79,29 +77,33 @@ public class Board {
 	}
 	
 	/**
-	 * Use either default initial board oconfiguration, or prompt user to specify their own.
-	 * Ensure board variables are valid afterwards.
+	 * Get user-defined parameters, including board configuration and depth. Initialize
+	 * variables appropriately.
 	 * 
 	 * @return true, program exits on a bad board.
 	 */
 	public BoardOptions setupBoard () {
 		System.out.println("<loading swing>");
-		initVars();
+
+		initVars(); // piece interfaces and moveHistory linked list
+
 		BoardGUI gui = new BoardGUI();
 		BoardOptions options = gui.askBoard();
-		if (options.board[0][0] == 'x') {
+
+		if (options.board[0][0] == 'x') { // BoardGUI will set this if bad board
 			System.out.println("Fatal Error: could not parse board");
 			System.exit(0);
 		}
-		fillPieces(options.board);
-		fillBoard();
+
+		fillPieces(options.board); // populate pieces and pieceNames
+		fillBoard(); // populate board, set checks and castling variables
 
 		return options;
 	}
 	
 	/**
-	 * Get access to each piece's validateMove(byte,byte) function, and 
-	 * initialize the linked list which is used to undo moves 
+	 * Gain access to each piece type's movement generation and validation methods,
+	 * and initilize the linked list of previous moves (moveHistory).
 	 */
 	private void initVars () {
 		pawn = new Pawn(this);
@@ -117,7 +119,7 @@ public class Board {
 	/**
 	 * Create and populate the board (must be called after #fillPieces()).
 	 * Calculate check states, and whether or not castling can occur.
-	 * Inform user how to interpret the board.
+	 * Inform user on how to interpret the board.
 	 */
 	private void fillBoard () {
 		// column labels (A-H)
@@ -152,9 +154,11 @@ public class Board {
 		if (board[7][0] < 16 || pieceNames[board[7][0]] != 'R')
 			CastleSync.set((byte)120);
 
+		// update check information
 		calcCheck(Colour.BLACK);
 		calcCheck(Colour.WHITE);
 		
+		// tell the user whats going on
 		if (isUnix) {
 			System.out.println("black pieces are " + CYAN + "CYAN" + RESET);
 			System.out.println("white pieces are " + YELLOW + "YELLOW" + RESET);
@@ -173,15 +177,17 @@ public class Board {
 	 * 				  lowercase chars corresponding to piece codes.
 	 */
 	private void fillPieces (char[][] config) {
-		pieces = new byte[32];
-		pieceNames = new byte[32];
-		// bits:
+		// pieces[x] bits;
 		// 7 = colour (0 = white, 1 = black)
 		// 6 = inPlay (0 = not in play (captured), 1 = in play)
 		// 5-3 = x coordinate
 		// 2-0 = y coordinate
+		pieces = new byte[32];
+		pieceNames = new byte[32]; // these are really just chars
 		
+		// Order of the pieces array, never changes. Only pawns may get promoted to other pieces.
 		String key = "KQRRBBNNPPPPPPPPkqrrbbnnpppppppp";
+
 		for (int i = 0; i < 8; i++) {
 			for (int j = 0; j < 8; j++) {
 				if (config[i][j] != 0) {
@@ -211,23 +217,24 @@ public class Board {
 		}
 	}
 	
-	/**
-	 * Print a textual representation of the board to console.
-	 */
+	/** Print a textual representation of the board to console. */
 	public void printBoard () {
+		// print column labels (chars A-H)
 		System.out.println();
 		System.out.print(" ");
 		for (int x=0; x < 8; x++) {
 			System.out.print(" ");
 			System.out.print(columns[x]);
 		}
+
+		// print each row of the board
 		System.out.println();
 		for (byte y=7; y >= 0; y--) {
 			System.out.print(y+1);
 			for (byte x=0; x < 8; x++) {
 				System.out.print(" ");
 				if (board[x][y] == -128) {
-					System.out.print((char)183);
+					System.out.print((char)183); // a period floating in space
 				} else {
 					if (isUnix) {
 						if (board[x][y] < 16) {
@@ -248,11 +255,14 @@ public class Board {
 			}
 			System.out.println();
 		}
+
+		// reprint column labels (chars A-H)
 		System.out.print(" ");
 		for (int x=0; x < 8; x++) {
 			System.out.print(" ");
 			System.out.print(columns[x]);
 		}
+
 		System.out.println("\n");
 	}
 
@@ -260,7 +270,7 @@ public class Board {
 	 * Return the appropriate class by looking up the char code
 	 * in pieceNames.
 	 * 
-	 * @param index  for pieces array
+	 * @param index of pieces array (and also pieceNames)
 	 * @return the corresponding piece class
 	 */
 	public PieceInterface getPiece (int index) {
@@ -381,17 +391,15 @@ public class Board {
 	 * Before any values are actually changed, ensure a move makes mechanical sense.
 	 * Checks that the piece is in play, it is of the correct colour, and can move 
 	 * to next position without colliding with another piece. Does not check check.
-	 * Only used when Human is making moves.
 	 * 
-	 * @param c  the colour of the piece being moved
-	 * @param current  a piece (from the pieces array)
-	 * @param next	the complete status of its next location
-	 * @return true if the move is valid, otherwise false
+	 * @param c, the colour of the piece being moved
+	 * @param current, a piece (from the pieces array)
+	 * @param next, the complete status of its desired next location
+	 * @return true, if the move is valid, otherwise false
 	 */
 	public boolean validateMove (Colour c, byte current, byte next) {
 		if ((64&current) != 64 || current == next)
 			return false;
-		PieceInterface pi = getPiece(board[(56&current)>>3][7&current]);
 		if (c == Colour.BLACK) {
 			if ((-128&current) == 0)
 				return false;
@@ -399,9 +407,17 @@ public class Board {
 			if ((-128&current) == -128)
 				return false;
 		}
+		PieceInterface pi = getPiece(board[(56&current)>>3][7&current]);
 		return pi.validateMove(current,next);
 	}
 
+	/**
+	 * Verify castling king is not escaping check or moving through check. 
+	 * 
+	 * @param  current, the current location of the king (must be on the E file, and a back rank)
+	 * @param  newKing, the king's next location
+	 * @return true if castling is allowed, false otherwise
+	 */
 	private boolean canCastle (byte current, byte newKing) {
 		boolean out = true;
 		switch (newKing) {
@@ -469,7 +485,7 @@ public class Board {
 			if (Math.abs(newCol-oldCol) == 2) {
 				if (!canCastle(current,next)) {
 					moveHistory = moveHistory.prev;
-					return false;
+					return false; // only time this method does not return true
 				} else {
 					if (newCol == 6) {
 						// castle kingside
@@ -511,19 +527,19 @@ public class Board {
 				}
 			} else {
 				if (current == -25 || current == 96) {
-					// sync not castle
+					// sync not castle (rooks/king moved from default square)
 					CastleSync.set(current);
 					moveHistory.pieces[0] = 2;
 				}
 			}
 		} else if (pieceNames[board[oldCol][oldRow]] == 'R') {
 			if (current == -57 || current == -1 || current == 64 || current == 120) {
-				// sync not castle
+				// sync not castle (rooks/king moved from default square)
 				CastleSync.set(current);
 				moveHistory.pieces[0] = 2;
 			}
 		} else if (pieceNames[board[oldCol][oldRow]] == 'P' && oldCol != newCol && board[newCol][newRow] == -128) {
-			// catch and handle en passant
+			// handle en passant
 			moveHistory.pieces[0] = -128;
 			moveHistory.pieces[3] = board[newCol][oldRow];
 			pieces[board[newCol][oldRow]] = (byte) (64^pieces[board[newCol][oldRow]]);
@@ -559,8 +575,8 @@ public class Board {
 	}
 	
 	/**
-	 * Used by Human to ensure the move does not put them in check, reverts move if
-	 * it does. 
+	 * Used by Human to ensure the move does not put them in check. Automatically
+	 * reverts the move if it does. 
 	 * 
 	 * @param c  player's colour
 	 * @param current  the current (now old) position
@@ -666,7 +682,7 @@ public class Board {
 	}
 	
 	/**
-	 * Helper class; used to calculate check.
+	 * Helper class; used to handle pawn promotions when calculating check.
 	 */
 	private class Shell implements PlayerInterface {
 		char promoChar = 'N';

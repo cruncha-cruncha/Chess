@@ -13,18 +13,21 @@ public class OldPosition {
 	// 4 = white was in check
 	// 3 = kingside castle
 	// 2 = queenside castle
-	// 1 = sync not castle
-	// 0 = used to be a pawn
+	// 1 = sync not castle (rook/king moved from default square)
+	// 0 = piece used to be a pawn
+	// 
 	// pieces[1] bits:
 	// 7-5 = unused
-	// 4-0 = index
+	// 4-0 = index (of Board.pieces)
+	// 
 	// pieces[2] bits:
-	// 7-0 = old piece
+	// 7-0 = old piece (what Board.pieces[x] used to be)
+	// 
 	// pieces[3] bits:
 	// 7-5 = unused
-	// 4-0 = index of captured piece
+	// 4-0 = index of captured piece (of Board.pieces)
 	public byte[] pieces;
-	public OldPosition prev;
+	public OldPosition prev; // linked list
 	
 	/**
 	 * Constructor, automatically links list
@@ -36,6 +39,6 @@ public class OldPosition {
 		pieces = new byte[4];
 	}
 	
-	/** Empty constructor */
+	/** Empty constructor, used for sentinel node */
 	public OldPosition () { }
 }

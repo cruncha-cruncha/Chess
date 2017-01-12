@@ -5,6 +5,8 @@ import Chess.*;
 /**
  * This class implements PieceInterface. It is created once for each Board.
  * It handles piece-specific move rules, and can generate possible moves.
+ * Pawns have a complex set of movement rules based on both their position
+ * and the prior move, however they can only ever move forwards.
  *
  * @author  Liam Marcassa
  */
@@ -23,7 +25,7 @@ public final class Pawn implements PieceInterface {
 	}
 	
 	/**
-	 * Symbol to print to console. Is not used for identification by Board.
+	 * Symbol to print to console. Is not used for identification by Board after setup.
 	 * 
 	 * @return 'P'
 	 */
@@ -104,16 +106,15 @@ public final class Pawn implements PieceInterface {
 		byte row = (byte)(current&7);
 		int size = 0;
 		
-		// -57 = keep row
-		// -8 = keep col
-		
 		if ((-128&current) == -128) {
 			if (b.board[col][row-1] == -128) {
 				candidates[size++] = (byte) (-8&current | row-1);
 				if (row == 6 && b.board[col][4] == -128) {
 					candidates[size++] = (byte) (-8&current | 4);
 				} else if (row == 1) {
-					// pawn gets promoted to either a queen or a knight
+					// Pawn gets promoted. Board and Computer automatically check
+					// both queen and knight promotions, made possible by including
+					// a duplicate move.
 					candidates[size++] = (byte) (-8&current | row-1);
 				}
 			}
@@ -141,7 +142,9 @@ public final class Pawn implements PieceInterface {
 				if (row == 1 && b.board[col][3] == -128) {
 					candidates[size++] = (byte) (-8&current | 3);
 				} else if (row == 6) {
-					// pawn gets promoted to either a queen or a knight
+					// Pawn gets promoted. Board and Computer automatically check
+					// both queen and knight promotions, made possible by including
+					// a duplicate move.
 					candidates[size++] = (byte) (-8&current | row+1);
 				}
 			}

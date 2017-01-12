@@ -8,8 +8,9 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Computer contains the AI components of this project, and implements
- * PlayerInterface.
+ * Computer acts as a Player. It contains the AI component of this project;
+ * searching a minimax tree using alpha-beta pruning. Two evaluation functions are
+ * given, one focusing on speed and the other on game state goals.
  *
  * @author Liam Marcassa
  */
@@ -17,38 +18,27 @@ public class Computer implements PlayerInterface {
 	private Scanner in;
 	private Board b;
 	private Colour colour, tc;   // colour = our colour, tc = their colour
-	private char promoChar = 'N';
-	private byte flags, flagsMask;
+	private char promoChar = 'N'; // what to promote a pawn to
+	private byte flags, flagsMask; // used to check castling
 	private boolean simpleEval,opening,endgame;
 	private int maxDepth;
 
-	// These are large values, outside the range produced by the eval() function.
+	// Large values, outside the range produced by the evaluation functions.
 	private static final int WIN = 15000;
 	private static final int STALE = -14000;
 
 	// Standing for myLow, myHigh, theirLow, theirHigh. These are indices
-	// relating to pieces[]. mLow and tLow will be {0,16}. These calculated
-	// once instead of constantly checking colours or writing two nearly
-	// identical classes.
+	// relating to Board.pieces[]. These are calculated once instead of constantly
+	// checking colours or writing two nearly identical classes.
 	private int mLow, mHi, tLow, tHi;
-
-	// make second evaluation function
-
-	// Weakest pawns = F2, F7
-	// 
-	// 1 - control center
-	// 2 - develop minor pieces (knights & bishops)
-	// 3 - castle (king safety)
-	// 4 - finish development (including queen & rooks)
-	// 5 - attack, usually by pushing center pawns up
-	// 
-	// encourage good openings (discourage pawn f6)
 	
 	/**
-	 * Constructor, initiallizes piece ranges
+	 * Initiallizes colour indices (for Board.pieces) and main variables.
 	 * 
-	 * @param b  the board to play with
-	 * @param colour  our piece colour (white or black)
+	 * @param  b          the Board to play on
+	 * @param  colour     our colour
+	 * @param  simpleEval whether to use the simple (fast) evaluation function or complex (better) one
+	 * @param  maxDepth   maximum search tree depth (except in complex evaluation's endgame)
 	 */
 	public Computer (Board b, Colour colour, Boolean simpleEval, int maxDepth) {
 		this.b = b;
@@ -58,16 +48,14 @@ public class Computer implements PlayerInterface {
 
 		if (colour == Colour.BLACK) {
 			tc = Colour.WHITE;
-			mLow = 0;
-			tLow = 16;
-			flagsMask = 13;
-			// 00001101
+			mLow = 0; 	// our king is at Board.pieces[0]
+			tLow = 16;	// their king is at Board.pieces[16]
+			flagsMask = 13; // 00001101, see CastleSync
 		} else {
 			tc = Colour.BLACK;
-			mLow = 16;
-			tLow = 0;
-			flagsMask = 50;
-			// 00110010
+			mLow = 16;	// our king is at Board.pieces[16]
+			tLow = 0;  	// their king is at Board.pieces[0]
+			flagsMask = 50; // 00110010, see CastleSync
 		}
 		mHi = mLow+16;
 		tHi = tLow+16;
@@ -88,13 +76,16 @@ public class Computer implements PlayerInterface {
 	public void makeMove() {
 		System.out.println("starting MiniMax");
 
+		// detect states if desired
 		if (!simpleEval) {
 			detectState();
 			if (endgame) { maxDepth += 4; }
 		}
 
+		// search
 		byte[] out = root();
 
+		// parse and print move out to console
 		char currentChar = (char) (((56&out[0])>>3)+65);
 		char nextChar = (char) (((56&out[1])>>3)+65);
 		System.out.print(currentChar);
@@ -140,14 +131,14 @@ public class Computer implements PlayerInterface {
 			firstVal = true;
 		}
 
-		/** Check is used to determine end game states */
+		/** Check is used to determine end game states (stale and mates) */
 		public void getChecks () {
 			blackInCheck = b.calcCheck(Colour.BLACK);
 			whiteInCheck = b.calcCheck(Colour.WHITE);
 		}
 
 		/**
-		 * Update alpha using a child node
+		 * Update alpha and/or value. Calls updateAlpha(int)
 		 * 
 		 * @param n  a child node
 		 */
@@ -156,9 +147,11 @@ public class Computer implements PlayerInterface {
 		}
 
 		/**
-		 * Update alpha using a beta value
+		 * Update value if it is the first time this node
+		 * has been evaluated. Update both alpha and value
+		 * if v > alpha.
 		 * 
-		 * @param b  a beta value
+		 * @param v, child node's value
 		 */
 		public void updateAlpha (int v) {
 			if (v > alpha) {
@@ -171,7 +164,7 @@ public class Computer implements PlayerInterface {
 		}
 
 		/**
-		 * Update beta using a child node
+		 * Update beta and/or value. Call updateBeta(int)
 		 * 
 		 * @param n  a child node
 		 */
@@ -180,9 +173,11 @@ public class Computer implements PlayerInterface {
 		}
 
 		/**
-		 * Update beta using an alpha value
+		 * Update value if it is the first time this node 
+		 * has been evaluated. Update both beta and value
+		 * if v < beta.
 		 * 
-		 * @param a  an alpha value
+		 * @param v, child node's value
 		 */
 		public void updateBeta (int v) {
 			if (v < beta) {
@@ -195,13 +190,13 @@ public class Computer implements PlayerInterface {
 		}
 	}
 
-	/**
-	 * Helper class: organized info and reduces code duplication
-	 */
+	/** Helper class: organizes a node's possible moves (to reduces code duplication) */
 	public class Piece {
 		byte current;
 		byte[] nexts;
 		int[] evals;
+
+		/** Get the piece's mechanically possible moves on creation */
 		public Piece (int i) {
 			current = b.pieces[i];
 			nexts = b.getPiece(i).getMoves(b.pieces[i]);
@@ -209,8 +204,11 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
-	 *
-	 * Probably lags behind the states a little, but still decent
+	 * Attempt to detect opening/middle/endgame states. This may not reflect the classical chess
+	 * states (especially openings, which can be defined for 10+ moves), but is extremely helpful
+	 * to the complex evaluation function. "Opening" is over when most pieces have been developed,
+	 * "Middlegame" is over when there are less than 7 pieces on the board. This method sets the
+	 * values of the opening and endgame booleans.
 	 */
 	private void detectState () {
 		opening = true;
@@ -269,15 +267,19 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
-	 * The root node
+	 * Root node for the minimax search tree, checks each possible move fron current state. Alpha-
+	 * Beta pruning is used to cut down search. If more than one move is found to be optimal, selects 
+	 * a random best move. If an endgame state is detected (stale or mate), the Board's gameOver string
+	 * is set to a non-empty string.
 	 * 
-	 * @return byte[] of length two, corresponding to the current and desired location of 
-	 * 		   a piece. Format is; [7-6]: unused, [5-3]: column, [2-0] row.
+	 * @return byte[] of length two, corresponding to the current and desired location of a piece
+	 *                (Board.pieces[x] can be directly replaced with second byte).
 	 */
 	private byte[] root () {
 		Piece[] pieces = new Piece[16];
 		Node node = new Node();
 
+		// we only care about castling if we have not done so already
 		flags = (byte) (flagsMask&CastleSync.getFlags());
 
 		Dispatch d = new Dispatch();
@@ -306,9 +308,6 @@ public class Computer implements PlayerInterface {
 			int a = 0;
 			while (pieces[i] != null && pieces[i].nexts[a] != 0) {
 				if (pieces[i].evals[a] == node.alpha) {
-					//out[0] = pieces[i].current;
-					//out[1] = pieces[i].nexts[a];
-					//break outer;
 					count++;
 					if (rand.nextDouble() < (1.0/count)) {
 						out[0] = pieces[i].current;
@@ -319,10 +318,10 @@ public class Computer implements PlayerInterface {
 			}
 		}
 
-		System.out.println(count);
-		System.out.println(node.alpha);
+		// debugging
+		//System.out.println(count);
+		//System.out.println(node.alpha);
 
-		// catch "ignore" states? would they ever be the only option?
 		if (node.alpha == WIN) {
 			b.gameOver = "Computer wins!";
 		} else if (node.alpha == (0-WIN)) {
@@ -334,22 +333,40 @@ public class Computer implements PlayerInterface {
 		return out;
 	}
 
+	/**
+	 * Holds node depth and evaluates board with proper function based
+	 * on the user's wishes. Node's must track their own depth by
+	 * calling downOne() and upOne() appropriately.
+	 */
 	public class Dispatch {
-		public int curDepth;
+		public int curDepth; // the current depth
 
+		/** Root node is at depth zero. */
 		public Dispatch () {
 			curDepth = 0;
 		}
 
+		/**
+		 * Increment curDepth, detect leaf node
+		 * 
+		 * @return true if leaf node (curDepth >= maxDepth)
+		 */
 		public boolean downOne () {
 			curDepth += 1;
 			return (curDepth >= maxDepth) ? true : false;
 		}
 
+		/** Decrement curDepth */
 		public void upOne () {
 			curDepth -= 1;
 		}
 
+		/**
+		 * A stale mate at depth 3 is better than a stale mate at depth 1. Thus it is
+		 * desirable to tweak the value of a badMove depending on depth.
+		 * 
+		 * @return value to add to a badMove
+		 */
 		public int lookAhead () {
 			if ((curDepth%2) == 0) {
 				return curDepth/2;
@@ -358,6 +375,11 @@ public class Computer implements PlayerInterface {
 			}
 		}
 
+		/**
+		 * Run the correct evaluation function based on simpleEval.
+		 * 
+		 * @return the simple evaluation is run if simpleEval is true
+		 */
 		public int eval () {
 			if (simpleEval) {
 				return simpleEval();
@@ -368,31 +390,40 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
-	 * Catch end game states (win, loss, stalemate)
+	 * Catch end game states (win, loss, stalemate) that result from my moves. We cannot detect a win on 
+	 * our move; we win only when the opponent loses (has no valid moves). This requires that depth >= 2, 
+	 * but greatly speeds up execution. The report contains more information on this decision.
 	 * 
 	 * @param n  the current node 
-	 * @return zero if non-end game state, WIN if win, 0-WIN if loss,
-	 * 		   and STALE if stalemate
+	 * @return zero if non-end game state, 0-WIN if loss, and STALE if stalemate
 	 */
 	private int checkMyMoves (Node n) {
 		if (colour == Colour.BLACK) {
 			if (n.blackInCheck) {
-				// if all moves are here, is checkmate
 				if (n.parent.blackInCheck) { return (0-WIN); }
-				// illegal move, cannot put self in check
 				return STALE;
 			}
 		} else {
 			if (n.whiteInCheck) {
-				// if all moves are here, is checkmate
 				if (n.parent.whiteInCheck) { return (0-WIN); }
-				// illegal move, cannot put self in check
 				return STALE;
 			}
 		}
 		return 0;
 	}
 
+	/**
+	 * A minimizing node. Attempts to move a piece from current to next. If successful,
+	 * it checks for badMoves (end states, in which case it returns), checks if it is a leaf
+	 * node (in which case it evaluates the position and returns), and finally generates all
+	 * possible moves and calls evenDepth(Node,byte,byte,Dispatch) to recurse down.
+	 * 
+	 * @param  parent  the parent node, needed to detect badMoves
+	 * @param  current a piece's current position
+	 * @param  next    the piece's desired next position
+	 * @param  d       for keeping track of depth
+	 * @return         the utility of the move from current to next
+	 */
 	private int oddDepth (Node parent, byte current, byte next, Dispatch d) {
 		if (b.boardMove(this,current,next)) {
 
@@ -436,26 +467,22 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
-	 * This method filters the opponents moves for end game states.
-	 * It is the mirror of {@link #checkMyMoves(Node) checkMyMoves}.
+	 * Catch end game states (win, loss, stalemate) that result from their moves. A stalemate
+	 * from this depth returns a positive value, as it is assumed bad for the opponent as well.
+	 * This requires some filtering at the root node.
 	 * 
 	 * @param n  the current node
-	 * @return zero if non-end game state, WIN if opponent wins, 0-WIN if opponent loses,
-	 * 		   and 0-STALE if stalemate.
+	 * @return zero if non-end game state, WIN if Computer wins, 0-STALE if stalemate.
 	 */
 	private int checkTheirMoves (Node n) {
 		if (tc == Colour.BLACK) {
 			if (n.blackInCheck) {
-				// if all moves are here, we win
 			 	if (n.parent.blackInCheck) { return WIN; }
-			 	// illegal move, cannot put self in check
 			 	return (0-STALE);
 			}
 		} else {
 			if (n.whiteInCheck) {
-				// if all moves are here, we win
 				if (n.parent.whiteInCheck) { return WIN; }
-				// illegal move, cannot put self in check
 				return (0-STALE);
 			}
 		}
@@ -463,14 +490,16 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
-	 * Attempts to move a piece from current to next, then dispatches
-	 * and evaluates all child moves. The actual piece moved is unimportant
-	 * to the method. Corresponds to depth two of the searh tree.
+	 * A maximizing node. Attempts to move a piece from current to next. If successful,
+	 * it checks for badMoves (end states, in which case it returns), checks if it is a leaf
+	 * node (in which case it evaluates the position and returns), and finally generates all
+	 * possible moves and calls oddDepth(Node,byte,byte,Dispatch) to recurse down.
 	 * 
-	 * @param parent  the parent node (root).
-	 * @param current  the current position of a piece.
-	 * @param next  the next desired position of a piece.
-	 * @return the utility of the move (from current to next).
+	 * @param  parent  the parent node, needed to detect badMoves
+	 * @param  current a piece's current position
+	 * @param  next    the piece's desired next position
+	 * @param  d       for keeping track of depth
+	 * @return         the utility of the move from current to next
 	 */
 	private int evenDepth (Node parent, byte current, byte next, Dispatch d) {
 		if (b.boardMove(this,current,next)) {
@@ -498,7 +527,6 @@ public class Computer implements PlayerInterface {
 					int a = 0;
 					while (pieces[i].nexts[a] != 0) {
 						node.updateAlpha(oddDepth(node, pieces[i].current, pieces[i].nexts[a], d));
-						// should it be less than or equal to???
 						if (node.beta < node.alpha)
 							break outer;
 						a++;
@@ -516,8 +544,11 @@ public class Computer implements PlayerInterface {
 	}
 	
 	/**
-	 * The evaluation function for a board state. Emphasis on speed.
-	 * @return int  the expected utility
+	 * A simple and fast evaluation of board configuration. Sums all piece values and returns
+	 * the balance, with a small penalty for moving our rooks/king before castling, and a small
+	 * reward for castling. 
+	 * 
+	 * @return utility of the position
 	 */
 	private int simpleEval () {
 		int sum = 0;
@@ -542,12 +573,19 @@ public class Computer implements PlayerInterface {
 		return sum;
 	}
 
-	// NEED TO EXPERIMENT WITH WEIGHTS
+	/**
+	 * Better, slower evaluation function. This function makes uses of state detection (open/mid/end game),
+	 * and encourages certain patterns in each one. Centre control, development, and king safety is emphasized
+	 * in the opening. Pawn structure and rook placement is emphasized in the middle. If endgame is detected,
+	 * maxDepth is increased, and the evaluation function gives a small boost for a centralized king. These
+	 * reward structures were chosen based on chess theory (gleaned from the Chess Club and Scholastic Centre
+	 * of St. Louis's and Mato Jelic's Youtube channels) and ease of computation. 
+	 *  
+	 * @return utility of the position
+	 */
 	private int bigEval () {
-
-		// keep recursing a little bit further in some cases?
-		int out = 0;
-		byte next;
+		int out = 0; // the return value
+		byte next; // scratch variable for ease of development
 
 		// piece totals
 		int sum = 0;
@@ -564,16 +602,16 @@ public class Computer implements PlayerInterface {
 			for (int i = mLow; i < mHi; i++) {
 				next = (byte) (-64&b.pieces[i] | 36); // E5
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 3;
+					centreAttack += 2;
 				next = (byte) (-64&b.pieces[i] | 35); // E4
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 3;
+					centreAttack += 2;
 				next = (byte) (-64&b.pieces[i] | 27); // D4
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 3;
+					centreAttack += 2;
 				next = (byte) (-64&b.pieces[i] | 28); // D5
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 3;
+					centreAttack += 2;
 			}
 
 			// develop minor pieces
@@ -582,7 +620,7 @@ public class Computer implements PlayerInterface {
 				if ((64&b.pieces[i]) == 64) {
 					next = (byte) (7&b.pieces[i]);
 					if (next != 0 && next != 7) {
-						development += 5;
+						development += 4;
 					}
 				}
 			}
@@ -599,6 +637,7 @@ public class Computer implements PlayerInterface {
 				}
 			}
 
+			// in future:
 			// encourage pawns to move off first row?
 			// pawn structure ?
 			// be careful with f2 / f7 ?
@@ -607,7 +646,7 @@ public class Computer implements PlayerInterface {
 
 		if (opening || !endgame) {
 			// maintain kings safety (try not to get back-rank checked or present weak squares),
-			// encourages the following pawn structures (shown if white king castled kingside):
+			// encourages the following pawn structures (shown as if white king castled kingside):
 			// 
 			// 0 0 0
 			// 0 0 1
@@ -671,7 +710,7 @@ public class Computer implements PlayerInterface {
 		}
 	
 		if (!endgame) {			
-			// push pawns up (count number of pawns past center line)
+			// push pawns up (counts number of pawns past center line)
 			int pawnAggression = 0;
 			if (colour == Colour.BLACK) {
 				for (int i = mLow+8; i < mHi; i++) {
@@ -723,7 +762,7 @@ public class Computer implements PlayerInterface {
 				openFile = true;
 				next = b.pieces[i];
 				if ((64&next) == 64) {
-					// ignore en passant
+					// ignores en passant!
 					int file = ((56&next)>>3)-1;
 					int rank = (7&next) + plusPawn;
 					if (file >= 0) {
@@ -747,27 +786,28 @@ public class Computer implements PlayerInterface {
 								rank += plusPawn;
 							}
 							if (openFile)
-								passed += 2; // is this high enough??
+								passed += 2;
 						}
 					}
 				}
 			}
 
+			// in future:
 			// identify opponents weaknesses and focus attack on them (count number of protectors vs attackers?)
 			// attack f-file pawn?
 			out += (sum + open + passed + pawnAggression);
 		}
 
 		if (endgame) {
-			// looks farther ahead (in makeMove method)
-			
+			// looks farther ahead (facilitated by makeMove() increasing maxDepth)
 			// get king to center
 			int centerKing = 0;
 			if ((56&b.pieces[mLow]) > 8 && (56&b.pieces[mLow]) < 48 && (7&b.pieces[mLow]) > 1 && (7&b.pieces[mLow]) < 6) {
 				centerKing += 1;
 			}
 			
-			// queen promotions (promote mine, prevent theirs) ? 
+			// in future:
+			// explicitly handle queen promotions (promote mine, prevent theirs) ? 
 			out = sum + centerKing;
 		}
 
@@ -775,6 +815,8 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
+	 * Get material utility based on classical values.
+	 * 
 	 * @param i  the piece index (@see Chess.Board)
 	 * @return standard relative weight
 	 */

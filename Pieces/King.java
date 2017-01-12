@@ -22,7 +22,7 @@ public class King implements PieceInterface {
 	}
 	
 	/**
-	 * Symbol to print to console. Is not used for identification by Board.
+	 * Symbol to print to console. Is not used for identification by Board after setup.
 	 * 
 	 * @return 'K'
 	 */
@@ -122,12 +122,9 @@ public class King implements PieceInterface {
 		byte col = (byte)((current&56)>>3);
 		byte row = (byte)(current&7);
 		byte count = 0;
-		
-		// -57 = keep row
-		// -8 = keep col
-		
+				
 		if (col+1 < 8) {
-			candidates[count++] = (byte) (-57&current | (col+1)<<3);
+			candidates[count++] = (byte) (-57&current | (col+1)<<3); // -57 = same row
 			if (row+1 < 8)
 				candidates[count++] = (byte) (-64&current | (col+1)<<3 | row+1);
 			if (row-1 >= 0)
@@ -153,7 +150,7 @@ public class King implements PieceInterface {
 		}
 		
 		if (row+1 < 8)
-			candidates[count++] = (byte) (-8&current | row+1);
+			candidates[count++] = (byte) (-8&current | row+1); // -8 = same col
 		if (row-1 >= 0)
 			candidates[count++] = (byte) (-8&current | row-1);
 

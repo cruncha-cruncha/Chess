@@ -5,6 +5,7 @@ import Chess.*;
 /**
  * This class implements PieceInterface. It is created once for each Board.
  * It handles piece-specific move rules, and can generate possible moves.
+ * Knights are unique in that they can hop over other pieces.
  *
  * @author  Liam Marcassa
  */
@@ -24,8 +25,7 @@ public class Knight implements PieceInterface {
 	/**
 	 * Symbol to print to console. Is not used for identification by Board.
 	 * 'K' was already taken by King, and since king is more important,
-	 * N was chosen for Knight. Knights are unique in that they can hop
-	 * over other pieces.
+	 * N was chosen for Knight.
 	 * 
 	 * @return 'N'
 	 */

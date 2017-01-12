@@ -5,6 +5,8 @@ import Chess.*;
 /**
  * This class implements PieceInterface. It is created once for each Board.
  * It handles piece-specific move rules, and can generate possible moves.
+ * Rooks move in straight lines. Although rooks are involved with castling,
+ * only the king can initiate it.
  *
  * @author  Liam Marcassa
  */
@@ -22,7 +24,7 @@ public class Rook implements PieceInterface {
 	}
 	
 	/**
-	 * Symbol to print to console. Is not used for identification by Board.
+	 * Symbol to print to console. Is not used for identification by Board after setup.
 	 * 
 	 * @return 'R'
 	 */

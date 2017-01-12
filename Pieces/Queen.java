@@ -5,6 +5,7 @@ import Chess.*;
 /**
  * This class implements PieceInterface. It is created once for each Board.
  * It handles piece-specific move rules, and can generate possible moves.
+ * A queen moves as a rook or bishop would.
  *
  * @author  Liam Marcassa
  */
@@ -22,7 +23,7 @@ public class Queen implements PieceInterface {
 	}
 
 	/**
-	 * Symbol to print to console. Is not used for identification by Board.
+	 * Symbol to print to console. Is not used for identification by Board after setup.
 	 * 
 	 * @return 'Q'
 	 */

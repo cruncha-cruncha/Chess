@@ -1,9 +1,9 @@
 package Chess.Pieces;
 
 /**
- * This is an interface which is implemented by all pieces. It ensures each child
+ * This is an interface which is implemented by all pieces. It ensures each implementing
  * class provides a character to display to console, piece-specific movement rules,
- * and generation of possible moves.
+ * and the generation of possible moves.
  *
  * @author  Liam Marcassa
  */

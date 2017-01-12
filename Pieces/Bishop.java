@@ -22,7 +22,7 @@ public class Bishop implements PieceInterface {
 	}
 	
 	/**
-	 * Symbol to print to console. Is not used for identification by Board.
+	 * Symbol to print to console. Is not used for identification by Board after setup.
 	 * 
 	 * @return 'B'
 	 */
