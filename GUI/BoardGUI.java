@@ -178,6 +178,9 @@ public class BoardGUI {
 	    		if (depth > 20) {
 	    			System.out.println("yea, sure. depth = 10");
 	    			depth = 10;
+	    		} else if (depth < 2) {
+	    			System.out.println("minimum depth = 2");
+	    			depth = 2;
 	    		}
 	    	} catch (java.lang.NumberFormatException except) {
 	    		System.out.println("Error: unable to parse depth, using default of 4");

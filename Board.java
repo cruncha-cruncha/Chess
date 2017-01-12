@@ -6,13 +6,6 @@ import Chess.Players.*;
 
 import java.util.LinkedList;
 import java.util.Scanner;
-/*
-import javax.swing.*;
-import java.awt.*;
-import javax.swing.table.*;
-import java.awt.event.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-*/
 
 /**
  *
@@ -60,10 +53,6 @@ public class Board {
 
 	// used as a dummy player to catch pawn promotions
 	private Shell shell = new Shell();
-
-	//
-	// GET MORE PARAMS FROM USER!!!
-	// 
 	
 	/** 
 	 * Constructor. Initializes gameOver string, detects *nix systems, creates and populates board
@@ -96,24 +85,17 @@ public class Board {
 	 * @return true, program exits on a bad board.
 	 */
 	public BoardOptions setupBoard () {
-		//Scanner in = new Scanner(System.in);
-		//System.out.print("use default configuration? (y/n): ");
-		//String choice = in.next().toLowerCase();
 		System.out.println("<loading swing>");
 		initVars();
-		//if (choice.equals("n")) {
 		BoardGUI gui = new BoardGUI();
 		BoardOptions options = gui.askBoard();
-			//char[][] out = askBoard();
-			if (options.board[0][0] == 'x') {
-				System.out.println("Fatal Error: could not parse board");
-				System.exit(0);
-			}
-			fillPieces(options.board);
-		//} else {
-		//	fillPieces();
-		//}
+		if (options.board[0][0] == 'x') {
+			System.out.println("Fatal Error: could not parse board");
+			System.exit(0);
+		}
+		fillPieces(options.board);
 		fillBoard();
+
 		return options;
 	}
 	
@@ -179,25 +161,6 @@ public class Board {
 		} else {
 			System.out.println("black pieces are UPPERCASE");
 			System.out.println("white pieces are lowercase");
-		}
-	}
-	
-	/**
-	 * Create and populate the pieces and pieceNames array for a standard board configuration.
-	 */
-	private void fillPieces () {
-		// black then white
-		byte[] filler = {-25,-33,-57,-1,-41,-17,-49,-9,-58,-50,-42,-34,-26,-18,-10,-2,
-		               96,88,64,120,80,104,72,112,65,73,81,89,97,105,113,121};
-		pieces = new byte[32];
-		for (int i = 0; i < 32; i++)
-			pieces[i] = filler[i];
-		
-		byte[] names = {'K','Q','R','R','B','B','N','N','P','P','P','P','P','P','P','P'};
-		pieceNames = new byte[32];
-		for (int i = 0; i < 16; i++) {
-			pieceNames[i] = names[i];
-			pieceNames[i+16] = names[i];
 		}
 	}
 	

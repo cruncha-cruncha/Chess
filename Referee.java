@@ -9,6 +9,10 @@ import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 
+// "6-8 page document describing the use and design of your system"
+// chess club and scholastic centre of st. louis
+// mato jelic
+
 
 /**
  * This class is the main entry to the program. It initilializes all required variables,

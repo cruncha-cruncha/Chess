@@ -19,7 +19,7 @@ public class Computer implements PlayerInterface {
 	private Colour colour, tc;   // colour = our colour, tc = their colour
 	private char promoChar = 'N';
 	private byte flags, flagsMask;
-	private boolean simpleEval;
+	private boolean simpleEval,opening,endgame;
 	private int maxDepth;
 
 	// These are large values, outside the range produced by the eval() function.
@@ -61,11 +61,13 @@ public class Computer implements PlayerInterface {
 			mLow = 0;
 			tLow = 16;
 			flagsMask = 13;
+			// 00001101
 		} else {
 			tc = Colour.BLACK;
 			mLow = 16;
 			tLow = 0;
 			flagsMask = 50;
+			// 00110010
 		}
 		mHi = mLow+16;
 		tHi = tLow+16;
@@ -85,6 +87,12 @@ public class Computer implements PlayerInterface {
 	/** Dispatch minimax, parse result, move */
 	public void makeMove() {
 		System.out.println("starting MiniMax");
+
+		if (!simpleEval) {
+			detectState();
+			if (endgame) { maxDepth += 4; }
+		}
+
 		byte[] out = root();
 
 		char currentChar = (char) (((56&out[0])>>3)+65);
@@ -201,6 +209,66 @@ public class Computer implements PlayerInterface {
 	}
 
 	/**
+	 *
+	 * Probably lags behind the states a little, but still decent
+	 */
+	private void detectState () {
+		opening = true;
+		endgame = false;
+		int pieceCount = 0;
+		int pawnCount = 0;
+
+		if (opening) {
+			// are we still in opening?
+			for (int i = 0; i < 8; i++) {
+				if ((64&b.pieces[i]) == 64) {
+					// check black back rank
+					if ((7&b.pieces[i]) == 7) {
+						pieceCount += 1;
+					}
+				}
+				if ((64&b.pieces[i+16]) == 64) {
+					// check white back rank
+					if ((7&b.pieces[i+16]) == 0) {
+						pieceCount += 1;
+					}
+				}
+				if ((64&b.pieces[i+8]) == 64) {
+					// check black pawns
+					if ((7&b.pieces[i+8]) == 6) {
+						pawnCount += 1;
+					}
+				}
+				if ((64&b.pieces[i+24]) == 64) {
+					// check white pawns
+					if ((7&b.pieces[i+24]) == 1) {
+						pawnCount += 1;
+					}
+				}
+			}
+
+			if (pawnCount < 5 || pieceCount < 4) {
+				// at least 4 pawns have moved, or only
+				// the king and two rooks are on the back rank
+				opening = false;
+				pieceCount = 0;
+			}
+		}
+
+
+		if (!opening) {
+			// are we still in mid?
+			for (int i = 0; i < 32; i++) {
+				if ((64&b.pieces[i]) == 64) {
+					pieceCount += 1;
+				}
+			}
+
+			if (pieceCount < 7) { endgame = true; }
+		}
+	}
+
+	/**
 	 * The root node
 	 * 
 	 * @return byte[] of length two, corresponding to the current and desired location of 
@@ -291,13 +359,11 @@ public class Computer implements PlayerInterface {
 		}
 
 		public int eval () {
-			/*
 			if (simpleEval) {
 				return simpleEval();
 			} else {
-				return betterEval();
-			}*/
-			return simpleEval();
+				return bigEval();
+			}
 		}
 	}
 
@@ -448,7 +514,6 @@ public class Computer implements PlayerInterface {
 			return Integer.MAX_VALUE; // ignore, tried to castle
 		}
 	}
-
 	
 	/**
 	 * The evaluation function for a board state. Emphasis on speed.
@@ -464,16 +529,249 @@ public class Computer implements PlayerInterface {
 			if ((64&b.pieces[i]) == 64)
 				sum -= pieceValue(i);
 
-		// HOW THE FUCK DOES THIS WORK??
 		if (flags == 0 && (flagsMask&CastleSync.getFlags()) != 0) {
 			if ((56&b.pieces[mLow]) == 16 || (56&b.pieces[mLow]) == 48) {
+				// we castled
 				sum += 2;
 			} else {
+				// we moved rook/king but did not castle
 				sum -= 2;
 			}
 		}
 
 		return sum;
+	}
+
+	// NEED TO EXPERIMENT WITH WEIGHTS
+	private int bigEval () {
+
+		// keep recursing a little bit further in some cases?
+		int out = 0;
+		byte next;
+
+		// piece totals
+		int sum = 0;
+		for (int i = mLow; i < mHi; i++)
+			if ((64&b.pieces[i]) == 64)
+				sum += pieceValue(i);
+		for (int i = tLow; i < tHi; i++)
+			if ((64&b.pieces[i]) == 64)
+				sum -= pieceValue(i);
+
+		if (opening) {
+			// "attack" centre four squares
+			int centreAttack = 0;
+			for (int i = mLow; i < mHi; i++) {
+				next = (byte) (-64&b.pieces[i] | 36); // E5
+				if (b.validateMove(colour,b.pieces[i],next))
+					centreAttack += 3;
+				next = (byte) (-64&b.pieces[i] | 35); // E4
+				if (b.validateMove(colour,b.pieces[i],next))
+					centreAttack += 3;
+				next = (byte) (-64&b.pieces[i] | 27); // D4
+				if (b.validateMove(colour,b.pieces[i],next))
+					centreAttack += 3;
+				next = (byte) (-64&b.pieces[i] | 28); // D5
+				if (b.validateMove(colour,b.pieces[i],next))
+					centreAttack += 3;
+			}
+
+			// develop minor pieces
+			int development = 0;
+			for (int i = mLow+2; i < mHi-8; i++) {
+				if ((64&b.pieces[i]) == 64) {
+					next = (byte) (7&b.pieces[i]);
+					if (next != 0 && next != 7) {
+						development += 5;
+					}
+				}
+			}
+
+			// get king to safety
+			int castled = 0;
+			if (flags == 0 && (flagsMask&CastleSync.getFlags()) != 0) {
+				if ((56&b.pieces[mLow]) == 16 || (56&b.pieces[mLow]) == 48) {
+					// we castled
+					castled += 3;
+				} else {
+					// we moved rook/king but did not castle
+					castled -= 3;
+				}
+			}
+
+			// encourage pawns to move off first row?
+			// pawn structure ?
+			// be careful with f2 / f7 ?
+			out = sum + centreAttack + development + castled;
+		}
+
+		if (opening || !endgame) {
+			// maintain kings safety (try not to get back-rank checked or present weak squares),
+			// encourages the following pawn structures (shown if white king castled kingside):
+			// 
+			// 0 0 0
+			// 0 0 1
+			// 1 1 0
+			// 
+			// 0 0 1
+			// 0 1 0
+			// 1 0 0
+			// 
+			int protectKing = 0;
+			if (colour == Colour.BLACK) {
+				if (((56&b.pieces[mLow])>>3) > 4) {
+					// kingside
+					if (b.board[5][6] < mHi && b.board[5][6] > mLow+7 &&
+						b.board[6][6] < mHi && b.board[6][6] > mLow+7 &&
+						b.board[7][5] < mHi && b.board[7][5] > mLow+7) {
+						protectKing += 4;
+					} else if (b.board[5][6] < mHi && b.board[5][6] > mLow+7 &&
+						b.board[6][5] < mHi && b.board[6][5] > mLow+7 &&
+						b.board[7][4] < mHi && b.board[7][4] > mLow+7) {
+						protectKing += 4;
+					}
+				} else if (((56&b.pieces[mLow])>>3) < 3) {
+					// queenside
+					if (b.board[0][5] < mHi && b.board[0][5] > mLow+7 &&
+						b.board[1][6] < mHi && b.board[1][6] > mLow+7 &&
+						b.board[2][6] < mHi && b.board[2][6] > mLow+7) {
+						protectKing += 4;
+					} else if (b.board[0][4] < mHi && b.board[0][4] > mLow+7 &&
+						b.board[1][5] < mHi && b.board[1][5] > mLow+7 &&
+						b.board[2][6] < mHi && b.board[2][6] > mLow+7) {
+						protectKing += 4;
+					}
+				}
+			} else {
+				if (((56&b.pieces[mLow])>>3) > 4) {
+					// kingside
+					if (b.board[5][1] < mHi && b.board[5][1] > mLow+7 &&
+						b.board[6][1] < mHi && b.board[6][1] > mLow+7 &&
+						b.board[7][2] < mHi && b.board[7][2] > mLow+7) {
+						protectKing += 4;
+					} else if (b.board[5][1] < mHi && b.board[5][1] > mLow+7 &&
+						b.board[6][2] < mHi && b.board[6][2] > mLow+7 &&
+						b.board[7][3] < mHi && b.board[7][3] > mLow+7) {
+						protectKing += 4;
+					}
+				} else if (((56&b.pieces[mLow])>>3) < 3) {
+					// queenside
+					if (b.board[0][2] < mHi && b.board[0][2] > mLow+7 &&
+						b.board[1][1] < mHi && b.board[1][1] > mLow+7 &&
+						b.board[2][1] < mHi && b.board[2][1] > mLow+7) {
+						protectKing += 4;
+					} else if (b.board[0][3] < mHi && b.board[0][3] > mLow+7 &&
+						b.board[1][2] < mHi && b.board[1][2] > mLow+7 &&
+						b.board[2][1] < mHi && b.board[2][1] > mLow+7) {
+						protectKing += 4;
+					}
+				}
+			}
+			out += protectKing;
+		}
+	
+		if (!endgame) {			
+			// push pawns up (count number of pawns past center line)
+			int pawnAggression = 0;
+			if (colour == Colour.BLACK) {
+				for (int i = mLow+8; i < mHi; i++) {
+					if ((64&b.pieces[i]) == 64 && (7&b.pieces[i]) < 4) {
+						pawnAggression += 1;
+					}
+				}
+			} else {
+				for (int i = mLow+8; i < mHi; i++) {
+					if ((64&b.pieces[i]) == 64 && (7&b.pieces[i]) > 3) {
+						pawnAggression += 1;
+					}
+				}
+			}
+
+			// find open / half-open files for rooks
+			int open = 0;
+			boolean openFile = true;
+			next = b.pieces[mLow+2]; // rook #1
+			if ((64&next) == 64) {
+				int file = (56&next)>>3;
+				for (int i = 0; i < 8; i++) {
+					if (b.board[file][i] != -128 && (b.board[file][i] < mLow || b.board[file][i] >= mHi)) {
+						openFile = false;
+						break;
+					}
+				}
+				if (openFile)
+					open += 3;
+			}
+			openFile = true;
+			next = b.pieces[mLow+3]; // rook #2
+			if ((64&next) == 64) {
+				int file = (56&next)>>3;
+				for (int i = 0; i < 8; i++) {
+					if (b.board[file][i] != -128 && (b.board[file][i] < mLow || b.board[file][i] >= mHi)) {
+						openFile = false;
+						break;
+					}
+				}
+				if (openFile)
+					open += 3;
+			}
+
+			// reward passed pawn (no enemy pawns in front on adjacent files)
+			int passed = 0;
+			int plusPawn = (colour == Colour.BLACK) ? -1 : 1;
+			for (int i = mLow+8; i < mHi; i++) {
+				openFile = true;
+				next = b.pieces[i];
+				if ((64&next) == 64) {
+					// ignore en passant
+					int file = ((56&next)>>3)-1;
+					int rank = (7&next) + plusPawn;
+					if (file >= 0) {
+						while (rank >= 0 && rank < 8) {
+							if (b.board[file][rank] >= tLow+8 && b.board[file][rank] < tHi) {
+								openFile = false;
+								break;
+							}
+							rank += plusPawn;
+						}
+					}
+					if (openFile) {
+						file += 2;
+						rank = (7&next) + plusPawn;
+						if (file < 8) {
+							while (rank >= 0 && rank < 8) {
+								if (b.board[file][rank] >= tLow+8 && b.board[file][rank] < tHi) {
+									openFile = false;
+									break;
+								}
+								rank += plusPawn;
+							}
+							if (openFile)
+								passed += 2; // is this high enough??
+						}
+					}
+				}
+			}
+
+			// identify opponents weaknesses and focus attack on them (count number of protectors vs attackers?)
+			// attack f-file pawn?
+			out += (sum + open + passed + pawnAggression);
+		}
+
+		if (endgame) {
+			// looks farther ahead (in makeMove method)
+			
+			// get king to center
+			int centerKing = 0;
+			if ((56&b.pieces[mLow]) > 8 && (56&b.pieces[mLow]) < 48 && (7&b.pieces[mLow]) > 1 && (7&b.pieces[mLow]) < 6) {
+				centerKing += 1;
+			}
+			
+			// queen promotions (promote mine, prevent theirs) ? 
+			out = sum + centerKing;
+		}
+
+		return out;
 	}
 
 	/**
@@ -497,7 +795,6 @@ public class Computer implements PlayerInterface {
 		}
 		return 0;
 	}
-	
 	
 	/**
 	 * "Catch" pawn promotion, promote to queen or knight (these will cover all movement options possible).
