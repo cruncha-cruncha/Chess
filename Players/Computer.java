@@ -79,7 +79,7 @@ public class Computer implements PlayerInterface {
 		// detect states if desired
 		if (!simpleEval) {
 			detectState();
-			if (endgame) { maxDepth += 4; }
+			if (endgame) { maxDepth += 2; }
 		}
 
 		// search
@@ -245,7 +245,7 @@ public class Computer implements PlayerInterface {
 				}
 			}
 
-			if (pawnCount < 5 || pieceCount < 4) {
+			if (pawnCount < 9 || pieceCount < 7) {
 				// at least 4 pawns have moved, or only
 				// the king and two rooks are on the back rank
 				opening = false;
@@ -733,7 +733,7 @@ public class Computer implements PlayerInterface {
 			if ((64&next) == 64) {
 				int file = (56&next)>>3;
 				for (int i = 0; i < 8; i++) {
-					if (b.board[file][i] != -128 && (b.board[file][i] < mLow || b.board[file][i] >= mHi)) {
+					if (b.board[file][i] != -128 && (b.board[file][i] < mLow+8 || b.board[file][i] >= mHi)) {
 						openFile = false;
 						break;
 					}
@@ -746,7 +746,7 @@ public class Computer implements PlayerInterface {
 			if ((64&next) == 64) {
 				int file = (56&next)>>3;
 				for (int i = 0; i < 8; i++) {
-					if (b.board[file][i] != -128 && (b.board[file][i] < mLow || b.board[file][i] >= mHi)) {
+					if (b.board[file][i] != -128 && (b.board[file][i] < mLow+8 || b.board[file][i] >= mHi)) {
 						openFile = false;
 						break;
 					}
