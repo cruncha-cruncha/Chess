@@ -40,6 +40,7 @@ public class Computer implements PlayerInterface {
 	 * @param  simpleEval whether to use the simple (fast) evaluation function or complex (better) one
 	 * @param  maxDepth   maximum search tree depth (except in complex evaluation's endgame)
 	 */
+	//public Computer (Board b, Colour colour, Boolean simpleEval, int maxDepth) {
 	public Computer (Board b, Colour colour, Boolean simpleEval, int maxDepth) {
 		this.b = b;
 		this.colour = colour;
@@ -602,16 +603,16 @@ public class Computer implements PlayerInterface {
 			for (int i = mLow; i < mHi; i++) {
 				next = (byte) (-64&b.pieces[i] | 36); // E5
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 2;
+					centreAttack += 1;
 				next = (byte) (-64&b.pieces[i] | 35); // E4
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 2;
+					centreAttack += 1;
 				next = (byte) (-64&b.pieces[i] | 27); // D4
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 2;
+					centreAttack += 1;
 				next = (byte) (-64&b.pieces[i] | 28); // D5
 				if (b.validateMove(colour,b.pieces[i],next))
-					centreAttack += 2;
+					centreAttack += 1;
 			}
 
 			// develop minor pieces
@@ -620,7 +621,7 @@ public class Computer implements PlayerInterface {
 				if ((64&b.pieces[i]) == 64) {
 					next = (byte) (7&b.pieces[i]);
 					if (next != 0 && next != 7) {
-						development += 4;
+						development += 3;
 					}
 				}
 			}
@@ -630,10 +631,10 @@ public class Computer implements PlayerInterface {
 			if (flags == 0 && (flagsMask&CastleSync.getFlags()) != 0) {
 				if ((56&b.pieces[mLow]) == 16 || (56&b.pieces[mLow]) == 48) {
 					// we castled
-					castled += 3;
+					castled += 4;
 				} else {
 					// we moved rook/king but did not castle
-					castled -= 3;
+					castled -= 4;
 				}
 			}
 
@@ -739,7 +740,7 @@ public class Computer implements PlayerInterface {
 					}
 				}
 				if (openFile)
-					open += 3;
+					open += 2;
 			}
 			openFile = true;
 			next = b.pieces[mLow+3]; // rook #2
@@ -752,7 +753,7 @@ public class Computer implements PlayerInterface {
 					}
 				}
 				if (openFile)
-					open += 3;
+					open += 2;
 			}
 
 			// reward passed pawn (no enemy pawns in front on adjacent files)
@@ -786,7 +787,7 @@ public class Computer implements PlayerInterface {
 								rank += plusPawn;
 							}
 							if (openFile)
-								passed += 2;
+								passed += 3;
 						}
 					}
 				}

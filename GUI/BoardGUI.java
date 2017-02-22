@@ -109,7 +109,7 @@ public class BoardGUI {
 		JCheckBox evalFuncCheck = new JCheckBox("use simple eval");
 		
 		mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-		mainFrame.setSize(450,190);
+		mainFrame.setSize(450,200);
 		mainFrame.setLayout(new FlowLayout());
 
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
